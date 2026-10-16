@@ -112,7 +112,7 @@ def suggest_topic(workspace: Path, threshold: float = 0.72) -> dict[str, Any]:
     pool = initialize(workspace)
     for idea in pool.get("ideas", []):
         if not find_duplicate(pool, idea["title"], idea["angle"], threshold):
-            return {"suggestion": idea, "reason": "与历史选题不重复"}
+            return {"suggestion": idea, "reason": "与现有选题形成明显差异"}
     return {
         "suggestion": None,
         "reason": "预置选题已用完；AI 应从新受众痛点、使用场景或证据形式生成新角度。",

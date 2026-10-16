@@ -35,16 +35,16 @@ REQUIRED_APPROVALS = {
 }
 
 NEXT_ACTIONS = {
-    "topic": "读取选题池并提出一个不重复的选题、角度和卖点。",
+    "topic": "读取选题池并提出具有明显差异的选题、角度和卖点。",
     "script": "撰写短视频脚本、镜头表、平台标题和发布文案。",
     "creative_brief": "调用 promo-video-maker 生成视觉方向和样帧，并推荐免费可商用 BGM/旁白方向。",
     "creative_approval": "向用户展示样帧、BGM 和声音推荐，等待 visual_sample 与 audio_direction 两项确认。",
-    "promo_render_with_qr": "用 ai-promo-video-maker 生成主片，并在主片项目中加入不少于 5 秒的二维码片尾。",
-    "qr_validation": "截取主片最后一帧，验证二维码完整、无遮挡且可扫描；失败则返回主片重渲染。",
-    "jianying_post": "导入含二维码的主片，用剪映加入自然旁白、单层底部字幕、混音和封面；不得重复二维码。",
+    "promo_render_with_qr": "用 ai-promo-video-maker 生成主片，并在主片项目中加入至少 5 秒的二维码片尾。",
+    "qr_validation": "截取主片片尾画面，验证二维码完整、无遮挡且可扫描，通过后进入剪映后期。",
+    "jianying_post": "导入主片，用剪映加入自然旁白、单层底部字幕、混音和封面。",
     "cover_approval": "展示剪映生成的封面，等待用户确认或给出一次修改意见。",
     "export": "Windows 自动导出并验证；macOS 打开草稿并请用户手动点击导出。",
-    "delivery_validation": "运行交付验证，生成 delivery-manifest.json，不自动发布。",
+    "delivery_validation": "运行交付验证，生成 delivery-manifest.json，并进入用户发布确认阶段。",
     "complete": "汇总成片、封面、脚本、发布文案和验证报告，并等待用户决定是否发布。",
 }
 
@@ -62,7 +62,7 @@ def new_project(workspace: Path, title: str, angle: str, selling_point: str, pla
     """Create versioned project state only after topic deduplication."""
     added = add_topic(workspace, title, angle, selling_point, platform_name)
     if not added["accepted"]:
-        return {"created": False, **added, "next_action": "更换受众痛点、使用场景或证据形式，而不是只改标题。"}
+        return {"created": False, **added, "next_action": "调整受众痛点、使用场景或证据形式，形成差异化选题。"}
     topic = added["topic"]
     project_id = f"{utc_now()[:10]}-{slugify(title)}-v1"
     path = state_path(workspace, project_id)
@@ -116,7 +116,7 @@ def advance_project(workspace: Path, project_id: str, artifact: str | None, note
     if current == "qr_validation" and not project.get("artifacts", {}).get("qr_validation", {}).get("passed"):
         return {
             "advanced": False,
-            "error": "二维码验证未通过。二维码必须在主片阶段修复后重新渲染，不能交给剪映补。",
+            "error": "二维码验证待完成。请在主片项目中更新二维码片尾并重新渲染。",
             "project": project,
             "next_action": NEXT_ACTIONS[current],
         }

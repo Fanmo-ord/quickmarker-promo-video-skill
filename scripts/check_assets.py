@@ -94,7 +94,7 @@ def inventory(workspace: Path, seed: bool = False) -> dict[str, Any]:
         "text_sensitive_findings": sensitive,
         "visual_privacy_review_required": any(item["visual_privacy_review_required"] for item in files),
         "ready": bool(files) and bool(qr_files) and not sensitive,
-        "notice": "图片和视频必须由 AI 逐帧/逐图检查真实姓名、成绩、学校等信息；本脚本不能仅凭文件名判定安全。",
+        "notice": "AI 需逐帧、逐图检查真实姓名、成绩、学校等信息，并在交付清单记录审核结果。",
     }
     manifest_path = paths["state"] / "asset-manifest.json"
     atomic_write_json(manifest_path, report)
