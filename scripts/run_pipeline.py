@@ -25,7 +25,7 @@ STAGES = (
     "jianying_post",
     "cover_approval",
     "export",
-    "delivery_validation",
+    "delivery_handoff",
     "complete",
 )
 
@@ -43,9 +43,9 @@ NEXT_ACTIONS = {
     "qr_validation": "截取主片片尾画面，验证二维码完整、无遮挡且可扫描，通过后进入剪映后期。",
     "jianying_post": "导入主片，用剪映加入自然旁白、单层底部字幕、混音和封面。",
     "cover_approval": "展示剪映生成的封面，等待用户确认或给出一次修改意见。",
-    "export": "Windows 自动导出并验证；macOS 打开草稿并请用户手动点击导出。",
-    "delivery_validation": "运行交付验证，生成 delivery-manifest.json，并进入用户发布确认阶段。",
-    "complete": "汇总成片、封面、脚本、发布文案和验证报告，并等待用户决定是否发布。",
+    "export": "Windows 自动导出并返回文件位置；macOS 打开草稿并请用户手动点击导出。",
+    "delivery_handoff": "生成 delivery-manifest.json，标记待人工验收，并进入用户发布确认阶段。",
+    "complete": "汇总成片、封面、脚本、发布文案和交付清单，并等待用户人工验收和发布决定。",
 }
 
 

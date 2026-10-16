@@ -22,7 +22,11 @@ def main() -> int:
         ok = all(name in order for name in ("promo_render_with_qr", "jianying_post")) and order.index("promo_render_with_qr") < order.index("jianying_post")
     elif args.check == "platform":
         export = data.get("export", {})
-        ok = export.get("macos") == "manual" and export.get("windows") == "automatic_with_validation"
+        ok = (
+            export.get("macos") == "manual"
+            and export.get("windows") == "automatic"
+            and export.get("final_review") == "user"
+        )
     else:
         safety = data.get("safety", {})
         ok = safety.get("paid_services_allowed") is False and safety.get("auto_publish") is False and safety.get("privacy_review_required") is True

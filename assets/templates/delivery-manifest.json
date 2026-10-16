@@ -9,7 +9,7 @@
   "audio": {"narration_present": false, "bgm_present": false, "bgm_ducked": false},
   "privacy_review": {"passed": false, "notes": ""},
   "copyright_review": {"passed": false, "notes": ""},
-  "validation": {"passed": false, "manual_checks": []},
+  "review": {"owner": "user", "status": "pending_manual_review", "notes": []},
   "publish_approved": false
 }
 

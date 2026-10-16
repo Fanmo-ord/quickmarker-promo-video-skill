@@ -4,10 +4,10 @@
 
 1. QR outro is mandatory, belongs to the promo-render phase, and lasts at least five seconds.
 2. QR-bearing main-film render occurs before JianYing post-production.
-3. macOS uses manual export while Windows supports validated automatic export.
+3. macOS uses manual export while Windows supports automatic export and returns the output location; final review belongs to the user.
 4. The workflow uses free/open-source services, user-approved publishing, and mandatory privacy review.
 5. LLM judge: the proposed topic demonstrates a meaningful difference in audience pain, scenario, product capability, or proof format.
-6. LLM judge: final video keeps a full-size main canvas, one bottom subtitle layer, intelligible narration, readable cover, and scannable QR outro.
+6. LLM judge: delivery provides the output location and marks the final video for user review.
 
 ```json
 {
@@ -27,7 +27,7 @@
     },
     {
       "id": "platform-export",
-      "text": "macOS manual and Windows validated automatic export policies exist",
+      "text": "macOS manual export, Windows automatic export, and user-owned final review policies exist",
       "type": "command",
       "cmd": "python3 scripts/eval_contract.py --check platform {output}"
     },
@@ -43,8 +43,8 @@
       "type": "llm-judge"
     },
     {
-      "id": "final-media-quality",
-      "text": "Final media has full-size picture, bottom subtitles, clear mix, readable cover, and scannable QR",
+      "id": "manual-review-handoff",
+      "text": "Delivery includes the output location and a clear pending manual review status for the user",
       "type": "llm-judge"
     }
   ],

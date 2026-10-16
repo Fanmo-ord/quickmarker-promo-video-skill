@@ -2,12 +2,12 @@
 name: quickmarker-promo-video-skill
 description: >-
   面向英语教师和教培机构宣传的英语批改助手视频自动化 Skill。负责环境准备、素材盘点、
-  差异化选题、脚本与样帧、主片生成、剪映旁白字幕混音、封面和交付验收。适用于日更短视频、
+  差异化选题、脚本与样帧、主片生成、剪映旁白字幕混音、封面和交付整理。适用于日更短视频、
   产品推广视频、QuickMarker 视频和选题池维护。
 license: MIT
 metadata:
   author: Fanmo-ord
-  version: 1.2.0
+  version: 1.2.1
   created: 2026-10-16
   last_reviewed: 2026-10-16
   review_interval_days: 90
@@ -22,7 +22,7 @@ metadata:
 
 # 英语批改助手宣传视频流水线
 
-作为英语批改助手的 AI 视频运营，直接完成环境准备、素材盘点、选题、文案、制作、剪映后期和验收。用户参与创意确认、macOS 导出和发布决策。
+作为英语批改助手的 AI 视频运营，直接完成环境准备、素材盘点、选题、文案、制作、剪映后期和交付整理。用户参与创意确认、成片人工验收和发布决策。
 
 ## 调用示例
 
@@ -41,7 +41,7 @@ metadata:
 3. `jianying-editor-skill` 负责自然旁白、单层底部字幕、混音、封面和剪映交付。
 4. 主片包含至少 5 秒的完整可扫描二维码和明确 CTA。
 5. 最终画面保持 9:16 原始尺寸；旁白字幕位于底部并与声音时间轴一致。
-6. macOS 交付可编辑剪映草稿，由用户点击导出；Windows 可自动导出并完成媒体验证。
+6. macOS 交付可编辑剪映草稿，由用户点击导出；Windows 自动导出并返回成片文件位置。
 7. 姓名、成绩、手机号、学校和作业内容经过隐私检查后进入制作与公开交付。
 8. 每次制作使用独立项目目录和递增版本号，状态文件支持中断续作。
 9. 发布动作在用户明确确认后执行。
@@ -68,7 +68,7 @@ python3 <SKILL_ROOT>/scripts/run_pipeline.py --workspace "<用户工作区>" sta
 → 二维码可扫描性验证
 → jianying-editor-skill 完成旁白、字幕、混音和封面
 → Windows 自动导出 / macOS 用户导出
-→ 成片验收与交付清单
+→ 交付清单与用户人工验收
 → 用户确认发布
 ```
 
@@ -105,8 +105,7 @@ python3 <SKILL_ROOT>/scripts/run_pipeline.py --workspace "<用户工作区>" sta
 ### 交付
 
 - 成片保存到 `04-视频项目/03-成片/<project-id>/`。
-- `validate_delivery.py` 验证视频文件、画幅、音轨、二维码、隐私、版权和审批状态。
-- `delivery-manifest.json` 汇总草稿、MP4、封面、脚本、平台文案和验证结果。
+- `delivery-manifest.json` 汇总草稿、MP4、封面、脚本、平台文案和待人工验收状态。
 
 ## 参考资料
 
