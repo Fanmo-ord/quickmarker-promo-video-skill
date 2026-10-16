@@ -44,6 +44,7 @@ def detect_jianying() -> dict[str, Any]:
             Path("/Applications/剪映专业版.app"),
             Path.home() / "Applications" / "剪映专业版.app",
             Path("/Applications/CapCut.app"),
+            Path("/Applications/VideoFusion-macOS.app"),
         ]
     elif system == "windows":
         for env_name in ("LOCALAPPDATA", "PROGRAMFILES", "PROGRAMFILES(X86)"):

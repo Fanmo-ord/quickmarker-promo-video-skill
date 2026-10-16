@@ -10,6 +10,7 @@ Use [SKILL.md](SKILL.md) as the workflow entrypoint.
 - Preserve a full-size 9:16 picture with one synchronized bottom subtitle layer.
 - Apply privacy review to names, grades, schools, phone numbers, handwriting, and student records.
 - Store work according to `references/file-management.md` and keep versioned project outputs.
+- Treat this Skill as the orchestration layer. Execute `ai-promo-video-maker` and `jianying-editor-skill` themselves at their assigned stages, using their templates, scripts, APIs, and required approval gates. Record the dependency Skill entrypoint and generated artifacts before advancing the pipeline.
 - Hand off the draft or exported file location and delivery manifest; the user performs final video review.
 - Treat publishing as a user-approved action.
 

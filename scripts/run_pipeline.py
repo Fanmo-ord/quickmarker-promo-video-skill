@@ -34,14 +34,20 @@ REQUIRED_APPROVALS = {
     "cover_approval": ("cover",),
 }
 
+REQUIRED_EXECUTOR_SKILLS = {
+    "creative_brief": "ai-promo-video-maker",
+    "promo_render_with_qr": "ai-promo-video-maker",
+    "jianying_post": "jianying-editor-skill",
+}
+
 NEXT_ACTIONS = {
     "topic": "读取选题池并提出具有明显差异的选题、角度和卖点。",
     "script": "撰写短视频脚本、镜头表、平台标题和发布文案。",
-    "creative_brief": "调用 promo-video-maker 生成视觉方向和样帧，并推荐免费可商用 BGM/旁白方向。",
-    "creative_approval": "向用户展示样帧、BGM 和声音推荐，等待 visual_sample 与 audio_direction 两项确认。",
-    "promo_render_with_qr": "用 ai-promo-video-maker 生成主片，并在主片项目中加入至少 5 秒的二维码片尾。",
+    "creative_brief": "加载并实际执行 ai-promo-video-maker，使用其模板生成 3 套差异化视觉方向与样帧，并推荐免费可商用 BGM/旁白方向。",
+    "creative_approval": "向用户展示 3 套样帧、BGM 和声音推荐，等待 visual_sample 与 audio_direction 两项确认。",
+    "promo_render_with_qr": "继续执行 ai-promo-video-maker 生成用户选定风格的主片，并在主片项目中加入至少 5 秒的二维码片尾。",
     "qr_validation": "截取主片片尾画面，验证二维码完整、无遮挡且可扫描，通过后进入剪映后期。",
-    "jianying_post": "导入主片，用剪映加入自然旁白、单层底部字幕、混音和封面。",
+    "jianying_post": "加载并实际执行 jianying-editor-skill，将主片导入剪映并用其 API 加入自然旁白、单层底部字幕、混音和封面。",
     "cover_approval": "展示剪映生成的封面，等待用户确认或给出一次修改意见。",
     "export": "Windows 自动导出并返回文件位置；macOS 打开草稿并请用户手动点击导出。",
     "delivery_handoff": "生成 delivery-manifest.json，标记待人工验收，并进入用户发布确认阶段。",
@@ -103,7 +109,15 @@ def approval_satisfied(project: dict[str, Any], stage: str) -> bool:
     return all(project.get("approvals", {}).get(name, {}).get("approved") for name in required)
 
 
-def advance_project(workspace: Path, project_id: str, artifact: str | None, note: str | None) -> dict[str, Any]:
+def advance_project(
+    workspace: Path,
+    project_id: str,
+    artifact: str | None,
+    note: str | None,
+    executor_skill: str | None = None,
+    skill_entrypoint: str | None = None,
+    samples: list[str] | None = None,
+) -> dict[str, Any]:
     """Advance one stage while enforcing approvals and QR ordering."""
     path = state_path(workspace, project_id)
     project = load_json(path)
@@ -113,6 +127,31 @@ def advance_project(workspace: Path, project_id: str, artifact: str | None, note
     if current in REQUIRED_APPROVALS and not approval_satisfied(project, current):
         missing = [name for name in REQUIRED_APPROVALS[current] if not project.get("approvals", {}).get(name, {}).get("approved")]
         return {"advanced": False, "needs_approval": missing, "project": project, "next_action": NEXT_ACTIONS[current]}
+    required_skill = REQUIRED_EXECUTOR_SKILLS.get(current)
+    if required_skill:
+        entrypoint = Path(skill_entrypoint).expanduser() if skill_entrypoint else None
+        artifact_path = Path(artifact).expanduser() if artifact else None
+        sample_paths = [Path(item).expanduser() for item in (samples or [])]
+        errors = []
+        if executor_skill != required_skill:
+            errors.append(f"executor_skill 必须是 {required_skill}")
+        if not entrypoint or entrypoint.name != "SKILL.md" or not entrypoint.is_file():
+            errors.append("必须提供实际加载过且存在的依赖 Skill SKILL.md 路径")
+        if not artifact_path or not artifact_path.exists():
+            errors.append("必须提供由依赖 Skill 生成且实际存在的阶段产物")
+        if current == "creative_brief":
+            if len(sample_paths) != 3 or len({str(path.resolve()) for path in sample_paths}) != 3:
+                errors.append("视觉阶段必须登记 3 个不同样帧")
+            elif any(not path.is_file() for path in sample_paths):
+                errors.append("3 个样帧文件必须全部存在")
+        if errors:
+            return {
+                "advanced": False,
+                "error": "；".join(errors),
+                "required_executor_skill": required_skill,
+                "project": project,
+                "next_action": NEXT_ACTIONS[current],
+            }
     if current == "qr_validation" and not project.get("artifacts", {}).get("qr_validation", {}).get("passed"):
         return {
             "advanced": False,
@@ -121,7 +160,13 @@ def advance_project(workspace: Path, project_id: str, artifact: str | None, note
             "next_action": NEXT_ACTIONS[current],
         }
     if artifact:
-        project.setdefault("artifacts", {})[current] = {"path": artifact, "recorded_at": utc_now()}
+        artifact_record = {"path": artifact, "recorded_at": utc_now()}
+        if required_skill:
+            artifact_record["executor_skill"] = required_skill
+            artifact_record["skill_entrypoint"] = str(Path(skill_entrypoint).expanduser().resolve())
+            if sample_paths:
+                artifact_record["samples"] = [str(path.resolve()) for path in sample_paths]
+        project.setdefault("artifacts", {})[current] = artifact_record
     index = STAGES.index(current)
     next_stage = STAGES[index + 1]
     project["stage"] = next_stage
@@ -206,6 +251,9 @@ def main() -> int:
     advance_parser.add_argument("--project", required=True)
     advance_parser.add_argument("--artifact")
     advance_parser.add_argument("--note")
+    advance_parser.add_argument("--executor-skill")
+    advance_parser.add_argument("--skill-entrypoint")
+    advance_parser.add_argument("--sample", action="append", default=[])
     approve_parser = sub.add_parser("approve")
     approve_parser.add_argument("--project", required=True)
     approve_parser.add_argument("--gate", required=True)
@@ -226,7 +274,15 @@ def main() -> int:
         project = load_json(state_path(workspace, args.project)) if args.project else latest_project(workspace)
         result = {"project": project, "next_action": NEXT_ACTIONS[project["stage"]] if project else "创建新项目。"}
     elif args.command == "advance":
-        result = advance_project(workspace, args.project, args.artifact, args.note)
+        result = advance_project(
+            workspace,
+            args.project,
+            args.artifact,
+            args.note,
+            args.executor_skill,
+            args.skill_entrypoint,
+            args.sample,
+        )
     elif args.command == "approve":
         result = record_approval(workspace, args.project, args.gate, args.approved == "yes", args.note)
     else:

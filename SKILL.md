@@ -7,7 +7,7 @@ description: >-
 license: MIT
 metadata:
   author: Fanmo-ord
-  version: 1.2.1
+  version: 1.2.3
   created: 2026-10-16
   last_reviewed: 2026-10-16
   review_interval_days: 90
@@ -23,6 +23,10 @@ metadata:
 # 英语批改助手宣传视频流水线
 
 作为英语批改助手的 AI 视频运营，直接完成环境准备、素材盘点、选题、文案、制作、剪映后期和交付整理。用户参与创意确认、成片人工验收和发布决策。
+
+本 Skill 是编排层：负责业务规则、阶段顺序、文件管理和审批状态。视觉样帧与主片由 `ai-promo-video-maker` 实际执行；旁白、字幕、混音、封面和草稿由 `jianying-editor-skill` 实际执行。进入对应阶段时，先加载依赖 Skill 的 `SKILL.md` 及其要求的工作规范，并使用其模板、脚本或 API 产出文件。
+
+状态机对这三个制作阶段执行来源校验：视觉样帧、含二维码主片、剪映后期。推进时必须登记匹配的依赖 Skill、实际入口文件和存在的产物；视觉阶段还必须登记 3 个不同样帧。缺少执行证据时不得推进。
 
 ## 调用示例
 
@@ -63,7 +67,7 @@ python3 <SKILL_ROOT>/scripts/run_pipeline.py --workspace "<用户工作区>" sta
 → 产品定位与官网信息读取
 → 选题池差异化检查
 → 脚本、镜头表与平台文案
-→ 视觉方向、样帧和声音方案确认
+→ ai-promo-video-maker 生成 3 套差异化视觉方向与样帧，用户选择
 → ai-promo-video-maker 生成含二维码片尾的主片
 → 二维码可扫描性验证
 → jianying-editor-skill 完成旁白、字幕、混音和封面
@@ -91,7 +95,7 @@ python3 <SKILL_ROOT>/scripts/run_pipeline.py --workspace "<用户工作区>" sta
 
 ### 创意确认
 
-- 提供推荐视觉方向和可查看样帧。
+- 实际调用 `ai-promo-video-maker`，提供 3 套构图、配色和动效语言明显不同的可查看样帧，并标注推荐项。
 - 提供 BGM、旁白音色和节奏建议。
 - 记录视觉、声音、封面和发布四个审批结果。
 

@@ -8,6 +8,8 @@
 4. The workflow uses free/open-source services, user-approved publishing, and mandatory privacy review.
 5. LLM judge: the proposed topic demonstrates a meaningful difference in audience pain, scenario, product capability, or proof format.
 6. LLM judge: delivery provides the output location and marks the final video for user review.
+7. LLM judge: the workflow acts as an orchestrator, actually executes both dependency Skills, and presents three distinct visual samples before main-film production.
+8. The state machine blocks dependency-owned stages unless the matching Skill entrypoint and generated artifacts are recorded; the visual stage requires three distinct existing samples.
 
 ```json
 {
@@ -46,6 +48,17 @@
       "id": "manual-review-handoff",
       "text": "Delivery includes the output location and a clear pending manual review status for the user",
       "type": "llm-judge"
+    },
+    {
+      "id": "dependency-skill-execution",
+      "text": "Workflow actually executes ai-promo-video-maker and jianying-editor-skill, and presents three distinct visual samples before rendering the main film",
+      "type": "llm-judge"
+    },
+    {
+      "id": "dependency-execution-gate",
+      "text": "Dependency-owned stages cannot advance without matching Skill entrypoint and generated artifacts; visual stage requires three distinct existing samples",
+      "type": "command",
+      "cmd": "python3 scripts/check_dependency_gate.py"
     }
   ],
   "golden": [

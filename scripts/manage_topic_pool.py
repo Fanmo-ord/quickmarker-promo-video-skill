@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import re
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -110,9 +111,13 @@ def complete_topic(workspace: Path, topic_id: str, video_path: str) -> dict[str,
 def suggest_topic(workspace: Path, threshold: float = 0.72) -> dict[str, Any]:
     """Return the first bundled idea whose angle is not already used."""
     pool = initialize(workspace)
-    for idea in pool.get("ideas", []):
-        if not find_duplicate(pool, idea["title"], idea["angle"], threshold):
-            return {"suggestion": idea, "reason": "与现有选题形成明显差异"}
+    candidates = [
+        idea
+        for idea in pool.get("ideas", [])
+        if not find_duplicate(pool, idea["title"], idea["angle"], threshold)
+    ]
+    if candidates:
+        return {"suggestion": random.choice(candidates), "reason": "从未使用的预置选题中随机生成"}
     return {
         "suggestion": None,
         "reason": "预置选题已用完；AI 应从新受众痛点、使用场景或证据形式生成新角度。",
