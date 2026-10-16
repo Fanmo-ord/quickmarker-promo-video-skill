@@ -17,6 +17,7 @@ Activate when the user asks for QuickMarker marketing videos, daily short-video 
 - Never shrink the main picture to make room for subtitles.
 - Do not expose student or teacher personal information. Do not publish or push sensitive assets to a public repository.
 - Preserve checkpoints and versioned outputs. Never overwrite an approved result.
+- Follow `references/file-management.md` before creating or moving any workspace file; never scatter generated files in the workspace root.
 - Do not auto-publish to social platforms.
 
 ## First command

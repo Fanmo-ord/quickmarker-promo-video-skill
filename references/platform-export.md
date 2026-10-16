@@ -13,7 +13,7 @@
 可以使用剪映 Skill 的自动导出能力，建议输出到：
 
 ```text
-quickmarker-video-workspace/exports/<project-id>/<project-id>.mp4
+04-视频项目/03-成片/<project-id>/<project-id>.mp4
 ```
 
 自动导出只有在以下条件全部满足后才算成功：文件存在、时长大于 0、分辨率正确、有音轨、能正常解码。仅看到剪映完成提示不算验证。

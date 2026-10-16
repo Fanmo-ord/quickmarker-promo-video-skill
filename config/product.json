@@ -36,5 +36,16 @@
     "shrink_main_canvas": false
   },
   "approval_gates": ["visual_sample", "audio_direction", "cover", "publish"]
+  ,
+  "storage": {
+    "management": "00-项目管理",
+    "product_docs": "01-产品资料",
+    "asset_library": "02-素材库",
+    "content_operations": "03-内容运营",
+    "video_projects": "04-视频项目",
+    "automation": "05-自动化工具",
+    "archive": "90-归档",
+    "naming_pattern": "YYYY-MM-DD_产品或模块_内容类型_主题_vNNN.扩展名"
+  }
 }
 

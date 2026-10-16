@@ -140,6 +140,17 @@ def ensure_runtime(workspace: Path, dependencies: list[dict[str, Any]], install:
         if step["status"] == "failed":
             report["status"] = "failed"
             return report
+    own_requirements = SKILL_ROOT / "requirements.txt"
+    if own_requirements.is_file() and own_requirements.stat().st_size:
+        own_stamp = runtime_root / "stamps" / f"quickmarker-{sha256_file(own_requirements)[:16]}.done"
+        if own_stamp.exists():
+            report["steps"].append({"status": "ready", "detail": "QuickMarker requirements unchanged"})
+        else:
+            step = run_install([str(python_path), "-m", "pip", "install", "-r", str(own_requirements)])
+            report["steps"].append(step)
+            if step["status"] == "installed":
+                own_stamp.parent.mkdir(parents=True, exist_ok=True)
+                own_stamp.write_text("installed\n", encoding="utf-8")
     for dependency in dependencies:
         if dependency.get("status") not in {"ready", "installed"}:
             continue

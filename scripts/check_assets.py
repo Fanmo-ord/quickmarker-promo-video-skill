@@ -21,12 +21,19 @@ SENSITIVE_PATTERNS = {
 }
 
 
-def seed_assets(library: Path) -> list[str]:
+def seed_assets(paths: dict[str, Path]) -> list[str]:
     """Copy bundled reference assets without overwriting user changes."""
     copied: list[str] = []
+    destinations = {
+        "screenshots": paths["screenshots"],
+        "videos": paths["videos"],
+        "brand": paths["brand"],
+        "knowledge": paths["product_docs"] / "01-产品定位",
+        "examples": paths["exports"] / "参考成片",
+    }
     for category in ("screenshots", "videos", "brand", "knowledge", "examples"):
         source_dir = ASSET_SOURCE / category
-        target_dir = library / category
+        target_dir = destinations[category]
         target_dir.mkdir(parents=True, exist_ok=True)
         if not source_dir.exists():
             continue
@@ -56,8 +63,8 @@ def scan_text(path: Path) -> list[str]:
 def inventory(workspace: Path, seed: bool = False) -> dict[str, Any]:
     """Return a manifest with hashes and explicit visual privacy review flags."""
     paths = workspace_layout(workspace)
-    copied = seed_assets(paths["library"]) if seed else []
-    roots = [paths["library"], paths["incoming"]]
+    copied = seed_assets(paths) if seed else []
+    roots = [paths["library"], paths["incoming"], paths["product_docs"]]
     files: list[dict[str, Any]] = []
     sensitive: list[dict[str, Any]] = []
     for root in roots:

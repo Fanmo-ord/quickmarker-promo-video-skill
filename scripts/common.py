@@ -66,17 +66,28 @@ def slugify(value: str, fallback: str = "video") -> str:
 def workspace_layout(workspace: Path) -> dict[str, Path]:
     """Return and create the persistent directory layout for a user workspace."""
     root = workspace.resolve()
-    base = root / "quickmarker-video-workspace"
     paths = {
-        "root": base,
-        "incoming": base / "素材库" / "incoming",
-        "library": base / "素材库" / "product-library",
-        "generated": base / "generated",
-        "drafts": base / "drafts",
-        "exports": base / "exports",
-        "state": base / "state",
-        "projects": base / "state" / "projects",
-        "validation": base / "validation",
+        "root": root,
+        "management": root / "00-项目管理",
+        "product_docs": root / "01-产品资料",
+        "library": root / "02-素材库",
+        "screenshots": root / "02-素材库" / "01-产品截图",
+        "videos": root / "02-素材库" / "02-教学视频",
+        "samples": root / "02-素材库" / "03-作文样本",
+        "brand": root / "02-素材库" / "05-品牌与导流",
+        "incoming": root / "03-内容运营" / "01-素材收集" / "待整理",
+        "topic_pool": root / "03-内容运营" / "02-选题池",
+        "copywriting": root / "03-内容运营" / "03-文案脚本",
+        "generated": root / "03-内容运营" / "04-视觉样帧",
+        "publish_packages": root / "03-内容运营" / "05-发布包",
+        "state": root / "03-内容运营" / "06-状态记录",
+        "projects": root / "03-内容运营" / "06-状态记录" / "projects",
+        "promo_projects": root / "04-视频项目" / "01-宣传片工程",
+        "drafts": root / "04-视频项目" / "02-剪映草稿",
+        "exports": root / "04-视频项目" / "03-成片",
+        "automation": root / "05-自动化工具",
+        "validation": root / "03-内容运营" / "06-状态记录" / "validation",
+        "archive": root / "90-归档",
     }
     for path in paths.values():
         path.mkdir(parents=True, exist_ok=True)

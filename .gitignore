@@ -4,16 +4,8 @@ __pycache__/
 .venv/
 .quickmarker-runtime/
 node_modules/
+workspace/
 .env
 .env.*
-workspace/generated/*
-workspace/drafts/*
-workspace/exports/*
-workspace/state/projects/*
-workspace/incoming/*
-!workspace/generated/.gitkeep
-!workspace/drafts/.gitkeep
-!workspace/exports/.gitkeep
-!workspace/state/.gitkeep
-!workspace/incoming/.gitkeep
+workspace/
 

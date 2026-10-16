@@ -13,14 +13,16 @@ jianying-editor-skill：旁白、单层底部字幕、混音、封面、导出/�
 
 ## 安装
 
-仓库默认应设为私有，因为预置截图和运营资料可能包含不适合公开分发的信息。
+本仓库公开提供 Skill、自动化脚本、脱敏后的产品参考截图和文档。包含学生名单/成绩的截图、原始教学视频、历史成片和其他版权状态不明确的媒体只保存在本地，不随公开仓库分发。
+
+本项目不接受外部 Pull Request。GitHub 无法阻止公开仓库用户点击“创建 PR”，因此仓库通过工作流自动关闭仓库所有者以外的 PR；使用者需要修改时请 Fork 后自行维护。
 
 macOS / Linux：
 
 ```bash
 git clone https://github.com/Fanmo-ord/quickmarker-promo-video-skill.git
 cd quickmarker-promo-video-skill
-./install.sh
+./scripts/install.sh
 ```
 
 Windows PowerShell：
@@ -28,7 +30,7 @@ Windows PowerShell：
 ```powershell
 git clone https://github.com/Fanmo-ord/quickmarker-promo-video-skill.git
 cd quickmarker-promo-video-skill
-.\install.ps1
+.\scripts\install.ps1
 ```
 
 安装器只安装本 Skill。第一次调用时，AI 会检测 Git、Python、Node.js、FFmpeg、剪映桌面端，并安装缺失的两个免费开源依赖项目。不会默认购买服务或调用付费 API。
@@ -49,7 +51,7 @@ cd quickmarker-promo-video-skill
 /quickmarker-promo-video-skill 继续上次中断的项目
 ```
 
-AI 会自动创建 `quickmarker-video-workspace/`。新增素材放入其中的 `素材库/incoming/`；即使没有新增素材，AI 也会先使用仓库预置的官网资料、截图、教学视频、二维码和运营定位文档。
+AI 会自动创建编号化的标准目录。新增素材先放入 `03-内容运营/01-素材收集/待整理/`；归档时只按最终用途分类，不按获取手段分类。例如，从教学视频筛选出的产品界面直接进入 `02-素材库/01-产品截图/`，不会另建“视频抽帧”目录。完整规则见 [文件创建、存储与命名规范](references/file-management.md)。即使没有新增素材，AI 也会先使用仓库预置的官网资料、脱敏截图、二维码和运营定位文档；教学视频需要用户放入本地素材目录。
 
 ## 平台差异
 
@@ -70,5 +72,5 @@ python3 scripts/run_pipeline.py --help
 python3 scripts/run_evals.py --validate
 ```
 
-完整约束见 [SKILL.md](SKILL.md)，素材许可见 [ASSET_LICENSE.md](ASSET_LICENSE.md)。
+完整约束见 [SKILL.md](SKILL.md)，素材许可见 [asset-license.md](references/asset-license.md)。
 
