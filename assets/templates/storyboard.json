@@ -1,0 +1,12 @@
+{
+  "project_id": "",
+  "canvas": {"width": 1080, "height": 1920, "fps": 30},
+  "scenes": [],
+  "qr_outro": {
+    "required": true,
+    "duration_seconds": 5,
+    "asset": "assets/brand/小程序二维码.png",
+    "cta": "微信扫码，即刻体验英语批改助手"
+  }
+}
+

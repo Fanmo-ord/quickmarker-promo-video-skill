@@ -1,0 +1,40 @@
+{
+  "product": {
+    "name": "英语批改助手",
+    "english_name": "QuickMarker",
+    "website": "https://quickmarker.erlitech.com/",
+    "primary_audience": ["英语教师", "教培机构"],
+    "excluded_default_audience": ["学生", "家长"],
+    "positioning": "让英语作业批改、错题统计与教学反馈更高效",
+    "default_platform": "douyin",
+    "default_canvas": {"width": 1080, "height": 1920, "aspect_ratio": "9:16"}
+  },
+  "tools": {
+    "promo_repo": "https://github.com/liyupi/ai-promo-video-maker.git",
+    "jianying_repo": "https://github.com/luoluoluo22/jianying-editor-skill.git",
+    "paid_services_allowed": false
+  },
+  "workflow": {
+    "main_film_engine": "ai-promo-video-maker",
+    "post_engine": "jianying-editor-skill",
+    "auto_publish": false,
+    "macos_auto_export": false,
+    "windows_auto_export": true
+  },
+  "qr_outro": {
+    "required": true,
+    "phase": "promo_render",
+    "minimum_duration_seconds": 5,
+    "asset": "assets/brand/小程序二维码.png",
+    "cta": "微信扫码，即刻体验英语批改助手",
+    "must_be_scannable": true,
+    "must_not_be_covered_by_subtitles": true
+  },
+  "subtitles": {
+    "position": "bottom",
+    "single_layer": true,
+    "shrink_main_canvas": false
+  },
+  "approval_gates": ["visual_sample", "audio_direction", "cover", "publish"]
+}
+
