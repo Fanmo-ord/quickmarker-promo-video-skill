@@ -16,6 +16,9 @@
   },
   "workflow": {
     "main_film_engine": "ai-promo-video-maker",
+    "main_film_audio_mode": "silent",
+    "narration_engine": "jianying-editor-skill",
+    "narration_selection": "automatic_recommended",
     "post_engine": "jianying-editor-skill",
     "auto_publish": false,
     "macos_auto_export": false,

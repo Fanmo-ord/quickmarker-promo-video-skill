@@ -5,8 +5,8 @@
 ## 工具分工
 
 ```text
-ai-promo-video-maker：画面、节奏、转场、二维码片尾
-jianying-editor-skill：旁白、单层底部字幕、混音、封面、草稿与导出
+ai-promo-video-maker：无音轨画面、节奏、转场、二维码片尾
+jianying-editor-skill：剪映智能配音、单层底部字幕、BGM 混音、封面、草稿与导出
 ```
 
 QuickMarker Skill 只负责编排流程；制作阶段会实际加载并执行上述两个依赖 Skill。视觉确认时先生成 3 套差异化样帧供用户选择，再制作主片。状态机要求登记依赖 Skill 入口和实际产物，缺少执行证据时不会推进。

@@ -7,7 +7,7 @@ description: >-
 license: MIT
 metadata:
   author: Fanmo-ord
-  version: 1.3.0
+  version: 1.3.1
   created: 2026-10-16
   last_reviewed: 2026-10-19
   review_interval_days: 90
@@ -25,6 +25,8 @@ metadata:
 作为英语批改助手的 AI 视频运营，直接完成环境准备、素材盘点、选题、文案、制作、剪映后期和交付整理。用户参与创意确认、成片人工验收和发布决策。
 
 本 Skill 是编排层：负责业务规则、阶段顺序、文件管理和审批状态。视觉样帧与主片由 `ai-promo-video-maker` 实际执行；旁白、字幕、混音、封面和草稿由 `jianying-editor-skill` 实际执行。进入对应阶段时，先加载依赖 Skill 的 `SKILL.md` 及其要求的工作规范，并使用其模板、脚本或 API 产出文件。
+
+调用 `ai-promo-video-maker` 时，将本项目的声音方案视为已确定：它只制作无旁白、无音轨的视觉主片，并跳过 ElevenLabs、音色试听、旁白生成和声音服务配置相关的询问与步骤。分镜时长直接依据已确认的口播脚本预留。旁白固定在剪映阶段由 `jianying-editor-skill` 使用剪映智能配音生成；用户未指定音色时，由 AI 选择自然中文音色和略快语速。
 
 状态机对这三个制作阶段执行来源校验：视觉样帧、含二维码主片、剪映后期。推进时必须登记匹配的依赖 Skill、实际入口文件和存在的产物；视觉阶段还必须登记 3 个不同样帧。缺少执行证据时不得推进。
 
@@ -100,7 +102,7 @@ python3 <SKILL_ROOT>/scripts/run_pipeline.py --workspace "<用户工作区>" sta
 ### 创意确认
 
 - 实际调用 `ai-promo-video-maker`，提供 3 套构图、配色和动效语言明显不同的可查看样帧，并标注推荐项。
-- 提供 BGM、旁白音色和节奏建议。
+- 提供 BGM 与画面节奏建议；旁白方案按剪映智能配音默认配置执行。
 - 记录视觉、声音、封面和发布四个审批结果。
 
 ### 主片与剪映

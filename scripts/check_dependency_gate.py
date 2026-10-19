@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from bootstrap import bootstrap
 from common import atomic_write_json, load_json, workspace_layout
-from run_pipeline import advance_project, new_project, state_path
+from run_pipeline import advance_project, artifact_errors, new_project, state_path
 
 
 def main() -> int:
@@ -30,6 +32,29 @@ def main() -> int:
             path = Path(files.get(key, ""))
             if not path.is_file():
                 raise RuntimeError(f"new project did not seed {key}: {path}")
+
+        contracts = created["project"].get("contracts", {})
+        if contracts.get("main_film_audio_mode") != "silent":
+            raise RuntimeError("main film must use the silent handoff contract")
+        if contracts.get("narration_engine") != "jianying-editor-skill":
+            raise RuntimeError("narration must be owned by jianying-editor-skill")
+        if contracts.get("narration_selection") != "automatic_recommended":
+            raise RuntimeError("Jianying narration must use automatic recommended settings")
+
+        fake_main_film = workspace / "main-film.mp4"
+        fake_main_film.write_bytes(b"mp4")
+        with patch("run_pipeline.shutil.which", return_value="/usr/bin/ffprobe"), patch(
+            "run_pipeline.subprocess.run",
+            return_value=SimpleNamespace(returncode=0, stdout="0\n", stderr=""),
+        ):
+            if not artifact_errors("promo_render_with_qr", fake_main_film):
+                raise RuntimeError("main film with an audio stream passed the silent handoff gate")
+        with patch("run_pipeline.shutil.which", return_value="/usr/bin/ffprobe"), patch(
+            "run_pipeline.subprocess.run",
+            return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+        ):
+            if artifact_errors("promo_render_with_qr", fake_main_film):
+                raise RuntimeError("silent main film was rejected by the handoff gate")
 
         created_state_path = Path(created["state_path"])
         created_state = load_json(created_state_path)

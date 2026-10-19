@@ -7,6 +7,7 @@ import argparse
 import json
 import platform
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -47,9 +48,9 @@ REQUIRED_EXECUTOR_SKILLS = {
 NEXT_ACTIONS = {
     "topic": "读取选题池并提出具有明显差异的选题、角度和卖点。",
     "script": "撰写短视频脚本、镜头表、平台标题和发布文案。",
-    "creative_brief": "加载并实际执行 ai-promo-video-maker，使用其模板生成 3 套差异化视觉方向与样帧，并推荐免费可商用 BGM/旁白方向。",
-    "creative_approval": "向用户展示 3 套样帧、BGM 和声音推荐，等待 visual_sample 与 audio_direction 两项确认。",
-    "promo_render_with_qr": "继续执行 ai-promo-video-maker 生成用户选定风格的主片，并在主片项目中加入至少 5 秒的二维码片尾。",
+    "creative_brief": "加载并实际执行 ai-promo-video-maker，按无旁白模式生成 3 套差异化视觉方向与样帧，并推荐免费可商用 BGM 与画面节奏；跳过 ElevenLabs 和旁白相关询问。",
+    "creative_approval": "向用户展示 3 套样帧和 BGM 推荐，等待 visual_sample 与 audio_direction 两项确认。",
+    "promo_render_with_qr": "继续执行 ai-promo-video-maker，生成无旁白、无音轨的主片，并在主片项目中加入至少 5 秒的二维码片尾。",
     "qr_validation": "截取主片片尾画面，验证二维码完整、无遮挡且可扫描，通过后进入剪映后期。",
     "jianying_post": "加载并实际执行 jianying-editor-skill，将主片导入剪映并用其 API 加入自然旁白、单层底部字幕、混音和封面。",
     "cover_approval": "展示剪映生成的封面，等待用户确认或给出一次修改意见。",
@@ -128,6 +129,35 @@ def artifact_errors(stage: str, artifact_path: Path | None) -> list[str]:
         return [f"{stage} 产物必须是 Markdown 文件"]
     if kind == "video" and (not artifact_path.is_file() or artifact_path.suffix.lower() != ".mp4"):
         return [f"{stage} 产物必须是 MP4 文件"]
+    if stage == "promo_render_with_qr":
+        ffprobe = shutil.which("ffprobe")
+        if not ffprobe:
+            return ["主片音轨校验需要 ffprobe"]
+        try:
+            probe = subprocess.run(
+                [
+                    ffprobe,
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    "a",
+                    "-show_entries",
+                    "stream=index",
+                    "-of",
+                    "csv=p=0",
+                    str(artifact_path),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return ["无法完成主片音轨校验"]
+        if probe.returncode != 0:
+            return ["主片文件无法通过 ffprobe 校验"]
+        if probe.stdout.strip():
+            return ["ai-promo-video-maker 主片必须保持无音轨，旁白与混音由剪映阶段完成"]
     if kind == "image" and (not artifact_path.is_file() or artifact_path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}):
         return ["封面产物必须是图片文件"]
     if kind == "draft":
@@ -182,6 +212,9 @@ def new_project(workspace: Path, title: str, angle: str, selling_point: str, pla
         "files": files,
         "history": [{"stage": "topic", "at": utc_now(), "note": "选题已通过去重检查"}],
         "contracts": {
+            "main_film_audio_mode": config["workflow"]["main_film_audio_mode"],
+            "narration_engine": config["workflow"]["narration_engine"],
+            "narration_selection": config["workflow"]["narration_selection"],
             "qr_phase": config["qr_outro"]["phase"],
             "qr_minimum_seconds": config["qr_outro"]["minimum_duration_seconds"],
             "subtitle_position": config["subtitles"]["position"],
