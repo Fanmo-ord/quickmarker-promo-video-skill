@@ -6,7 +6,7 @@
   "cover": {"path": "", "approved": false},
   "qr_outro": {"included_in_main_film": false, "duration_seconds": 0, "verified_scan": false, "proof_frame": ""},
   "subtitles": {"position": "bottom", "single_layer": true, "main_canvas_scaled": false, "sync_verified": false},
-  "audio": {"narration_present": false, "bgm_present": false, "bgm_ducked": false},
+  "audio": {"narration_present": false, "bgm_present": false, "bgm_ducked": false, "narration_subtitle_sync_method": "", "narration_subtitle_sync_verified": false},
   "privacy_review": {"passed": false, "notes": ""},
   "copyright_review": {"passed": false, "notes": ""},
   "review": {"owner": "user", "status": "pending_manual_review", "notes": []},

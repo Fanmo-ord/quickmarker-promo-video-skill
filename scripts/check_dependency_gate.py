@@ -11,7 +11,7 @@ from unittest.mock import patch
 from bootstrap import bootstrap
 from common import atomic_write_json, load_json, workspace_layout
 from manage_topic_pool import suggest_topics
-from run_pipeline import advance_project, artifact_errors, new_project, state_path
+from run_pipeline import advance_project, artifact_errors, new_project, project_contract_errors, state_path
 
 
 def main() -> int:
@@ -37,10 +37,34 @@ def main() -> int:
         if not created.get("created"):
             raise RuntimeError(f"new project was not created: {created}")
         files = created["project"].get("files", {})
-        for key in ("creative_brief", "storyboard", "delivery_manifest"):
+        for key in ("creative_brief", "storyboard", "delivery_manifest", "narration"):
             path = Path(files.get(key, ""))
             if not path.is_file():
                 raise RuntimeError(f"new project did not seed {key}: {path}")
+
+        narration_path = Path(files["narration"])
+        narration_path.write_text("拍照上传作业，英语批改助手自动完成批改。", encoding="utf-8")
+        jianying_script = Path(files["jianying_script"])
+        jianying_script.write_text(
+            "from pathlib import Path\n"
+            "text = Path('narration.txt').read_text(encoding='utf-8')\n"
+            "project.add_narrated_subtitles(text, speaker='zh_female_xiaopengyou')\n",
+            encoding="utf-8",
+        )
+        if project_contract_errors("jianying_post", created["project"]):
+            raise RuntimeError("valid narrated-subtitle contract was rejected")
+        jianying_script.write_text(
+            "project.add_tts_intelligent('voice')\nproject.import_srt('subtitle.srt')\n",
+            encoding="utf-8",
+        )
+        if not project_contract_errors("jianying_post", created["project"]):
+            raise RuntimeError("separate narration and subtitle generation passed the contract gate")
+        jianying_script.write_text(
+            "from pathlib import Path\n"
+            "text = Path('narration.txt').read_text(encoding='utf-8')\n"
+            "project.add_narrated_subtitles(text, speaker='zh_female_xiaopengyou')\n",
+            encoding="utf-8",
+        )
 
         contracts = created["project"].get("contracts", {})
         if contracts.get("main_film_audio_mode") != "silent":
@@ -87,6 +111,11 @@ def main() -> int:
         created_state["stage"] = "delivery_handoff"
         created_state["artifacts"]["export"] = {"path": str(export_path)}
         atomic_write_json(created_state_path, created_state)
+        manifest_path = Path(files["delivery_manifest"])
+        manifest = load_json(manifest_path)
+        manifest["audio"]["narration_subtitle_sync_method"] = "add_narrated_subtitles"
+        manifest["audio"]["narration_subtitle_sync_verified"] = True
+        atomic_write_json(manifest_path, manifest)
         completed = advance_project(
             workspace,
             created_state["project_id"],

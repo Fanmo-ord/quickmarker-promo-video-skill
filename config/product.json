@@ -19,6 +19,7 @@
     "main_film_audio_mode": "silent",
     "narration_engine": "jianying-editor-skill",
     "narration_selection": "automatic_recommended",
+    "narration_sync_method": "add_narrated_subtitles",
     "post_engine": "jianying-editor-skill",
     "auto_publish": false,
     "macos_auto_export": false,

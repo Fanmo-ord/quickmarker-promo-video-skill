@@ -48,12 +48,12 @@ REQUIRED_EXECUTOR_SKILLS = {
 
 NEXT_ACTIONS = {
     "topic": "读取选题池并提出具有明显差异的选题、角度和卖点。",
-    "script": "撰写短视频脚本、镜头表、平台标题和发布文案。",
+    "script": "撰写短视频脚本、镜头表、平台标题和发布文案，并把最终口播全文写入 files.narration。",
     "creative_brief": "加载并实际执行 ai-promo-video-maker，按无旁白模式生成 3 套差异化视觉方向与样帧，并推荐免费可商用 BGM 与画面节奏；跳过 ElevenLabs 和旁白相关询问。",
     "creative_approval": "向用户展示 3 套样帧和 BGM 推荐，等待 visual_sample 与 audio_direction 两项确认。",
     "promo_render_with_qr": "继续执行 ai-promo-video-maker，生成无旁白、无音轨的主片，并在主片项目中加入至少 5 秒的二维码片尾。",
     "qr_validation": "截取主片片尾画面，验证二维码完整、无遮挡且可扫描，通过后进入剪映后期。",
-    "jianying_post": "加载并实际执行 jianying-editor-skill，创建 1080×1920 项目，将主片以 100% 比例居中铺满主视频轨，再用独立轨道加入自然旁白、单层底部字幕、BGM 混音和封面。",
+    "jianying_post": "加载并实际执行 jianying-editor-skill，在 files.jianying_script 创建 1080×1920 项目并铺满主视频轨；从 files.narration 读取全文，调用 add_narrated_subtitles 同步生成旁白与底部字幕，再加入 BGM 和封面。",
     "cover_approval": "展示剪映生成的封面，等待用户确认或给出一次修改意见。",
     "export": "Windows 自动导出并返回文件位置；macOS 打开草稿并请用户手动点击导出。",
     "delivery_handoff": "生成 delivery-manifest.json，标记待人工验收，并进入用户发布确认阶段。",
@@ -85,6 +85,7 @@ def initialize_project_files(workspace: Path, project_id: str, title: str, platf
 
     files = {
         "script": paths["copywriting"] / f"{stem.format(kind='脚本')}.md",
+        "narration": paths["copywriting"] / f"{stem.format(kind='旁白')}.txt",
         "creative_brief": paths["copywriting"] / f"{stem.format(kind='创意方案')}.md",
         "storyboard": project_dir / "storyboard.json",
         "sample_dir": sample_dir,
@@ -96,9 +97,11 @@ def initialize_project_files(workspace: Path, project_id: str, title: str, platf
         "delivery_manifest": export_dir / "delivery-manifest.json",
         "publish_package": publish_dir,
         "tmp": project_dir / "tmp",
+        "jianying_script": project_dir / "build_jianying_post.py",
     }
 
     shutil.copy2(TEMPLATE_ROOT / "creative-brief.md", files["creative_brief"])
+    files["narration"].touch()
     storyboard = load_json(TEMPLATE_ROOT / "storyboard.json")
     storyboard["project_id"] = project_id
     atomic_write_json(files["storyboard"], storyboard)
@@ -195,6 +198,31 @@ def artifact_errors(stage: str, artifact_path: Path | None) -> list[str]:
             return [f"delivery-manifest.json 缺少字段：{', '.join(missing)}"]
         if manifest.get("review", {}).get("status") != "pending_manual_review":
             return ["交付清单必须标记 pending_manual_review，由用户人工验收"]
+        audio = manifest.get("audio", {})
+        if audio.get("narration_subtitle_sync_method") != "add_narrated_subtitles":
+            return ["交付清单必须记录剪映旁白字幕同步方法 add_narrated_subtitles"]
+        if audio.get("narration_subtitle_sync_verified") is not True:
+            return ["交付清单必须记录旁白字幕同步校验已通过"]
+    return []
+
+
+def project_contract_errors(stage: str, project: dict[str, Any]) -> list[str]:
+    """Validate project-owned files that make cross-stage contracts enforceable."""
+    files = project.get("files", {})
+    if stage in {"script", "jianying_post"}:
+        narration_path = Path(files.get("narration", ""))
+        if not narration_path.is_file() or not narration_path.read_text(encoding="utf-8").strip():
+            return ["必须在规范旁白文本文件中保存最终口播内容"]
+    if stage == "jianying_post":
+        script_path = Path(files.get("jianying_script", ""))
+        if not script_path.is_file() or script_path.suffix.lower() != ".py":
+            return ["必须在规范路径保存剪映自动化执行脚本"]
+        source = script_path.read_text(encoding="utf-8")
+        required_markers = ("read_text(", "add_narrated_subtitles(")
+        if any(marker not in source for marker in required_markers):
+            return ["剪映脚本必须读取规范旁白文本并调用 add_narrated_subtitles 同步生成声音和字幕"]
+        if "add_tts_intelligent(" in source or "import_srt(" in source:
+            return ["剪映旁白与字幕必须统一通过 add_narrated_subtitles 生成"]
     return []
 
 
@@ -232,6 +260,7 @@ def new_project(workspace: Path, title: str, angle: str, selling_point: str, pla
             "main_film_audio_mode": config["workflow"]["main_film_audio_mode"],
             "narration_engine": config["workflow"]["narration_engine"],
             "narration_selection": config["workflow"]["narration_selection"],
+            "narration_sync_method": config["workflow"]["narration_sync_method"],
             "qr_phase": config["qr_outro"]["phase"],
             "qr_minimum_seconds": config["qr_outro"]["minimum_duration_seconds"],
             "subtitle_position": config["subtitles"]["position"],
@@ -271,6 +300,7 @@ def advance_project(
         missing = [name for name in REQUIRED_APPROVALS[current] if not project.get("approvals", {}).get(name, {}).get("approved")]
         return {"advanced": False, "needs_approval": missing, "project": project, "next_action": NEXT_ACTIONS[current]}
     errors = artifact_errors(current, artifact_path)
+    errors.extend(project_contract_errors(current, project))
     required_skill = REQUIRED_EXECUTOR_SKILLS.get(current)
     if required_skill:
         entrypoint = Path(skill_entrypoint).expanduser() if skill_entrypoint else None
