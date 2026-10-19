@@ -7,7 +7,7 @@ description: >-
 license: MIT
 metadata:
   author: Fanmo-ord
-  version: 1.3.1
+  version: 1.3.2
   created: 2026-10-16
   last_reviewed: 2026-10-19
   review_interval_days: 90
@@ -95,7 +95,9 @@ python3 <SKILL_ROOT>/scripts/run_pipeline.py --workspace "<用户工作区>" sta
 ### 选题与方案
 
 - 从 `03-内容运营/06-状态记录/topic-pool.json` 读取已有选题。
-- 通过受众痛点、使用场景、产品能力或证据形式形成差异化角度。
+- 每次开始新项目时先生成 3 个候选方向，分别给出标题、内容角度和核心卖点。
+- 3 个候选通过受众痛点、使用场景、产品能力或证据形式形成明显差异，并全部通过选题池重复度检查。
+- 向用户同时展示 3 个候选并等待选择；用户选定后才调用 `new` 创建项目。
 - 默认受众为英语教师和教培机构。
 - 每个项目记录平台、标题、角度、钩子、卖点、素材、脚本、日期和状态。
 

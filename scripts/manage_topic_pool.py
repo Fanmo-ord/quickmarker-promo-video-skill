@@ -108,6 +108,37 @@ def complete_topic(workspace: Path, topic_id: str, video_path: str) -> dict[str,
     raise KeyError(f"Unknown topic id: {topic_id}")
 
 
+def suggest_topics(workspace: Path, count: int = 3, threshold: float = 0.72) -> dict[str, Any]:
+    """Return distinct bundled ideas whose angles have not already been used."""
+    pool = initialize(workspace)
+    candidates = [
+        idea
+        for idea in pool.get("ideas", [])
+        if not find_duplicate(pool, idea["title"], idea["angle"], threshold)
+    ]
+    random.shuffle(candidates)
+    suggestions: list[dict[str, Any]] = []
+    for candidate in candidates:
+        if any(
+            similarity(
+                f"{candidate['title']} {candidate['angle']}",
+                f"{selected['title']} {selected['angle']}",
+            )
+            >= threshold
+            for selected in suggestions
+        ):
+            continue
+        suggestions.append(candidate)
+        if len(suggestions) == count:
+            break
+    return {
+        "suggestions": suggestions,
+        "required_count": count,
+        "generation_needed": max(0, count - len(suggestions)),
+        "reason": "候选来自未使用的预置选题；不足部分由 AI 生成并通过重复度检查后补齐。",
+    }
+
+
 def suggest_topic(workspace: Path, threshold: float = 0.72) -> dict[str, Any]:
     """Return the first bundled idea whose angle is not already used."""
     pool = initialize(workspace)
@@ -130,7 +161,8 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("init")
     sub.add_parser("list")
-    sub.add_parser("suggest")
+    suggest = sub.add_parser("suggest")
+    suggest.add_argument("--count", type=int, default=3)
     check = sub.add_parser("check")
     add = sub.add_parser("add")
     complete = sub.add_parser("complete")
@@ -148,7 +180,7 @@ def main() -> int:
     if args.command in {"init", "list"}:
         result: Any = pool
     elif args.command == "suggest":
-        result = suggest_topic(workspace)
+        result = suggest_topics(workspace, count=max(1, args.count))
     elif args.command == "check":
         duplicate = find_duplicate(pool, args.title, args.angle, args.threshold)
         result = {"duplicate": bool(duplicate), "match": duplicate}

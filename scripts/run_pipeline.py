@@ -14,7 +14,7 @@ from typing import Any
 from bootstrap import bootstrap
 from check_assets import inventory
 from common import atomic_write_json, load_config, load_json, slugify, utc_now, workspace_layout
-from manage_topic_pool import add_topic, complete_topic, initialize as initialize_topic_pool, suggest_topic
+from manage_topic_pool import add_topic, complete_topic, initialize as initialize_topic_pool, suggest_topics
 
 
 TEMPLATE_ROOT = Path(__file__).resolve().parent.parent / "assets" / "templates"
@@ -339,11 +339,15 @@ def start(workspace: Path, install: bool = False) -> dict[str, Any]:
     assets = inventory(workspace, seed=True)
     pool = initialize_topic_pool(workspace)
     current = latest_project(workspace)
+    topic_selection = None
     if current and current.get("status") == "active":
         next_action = f"继续项目 {current['project_id']}：{NEXT_ACTIONS[current['stage']]}"
     else:
-        suggestion = suggest_topic(workspace)
-        next_action = "根据建议选题创建新项目，并向用户简短说明推荐角度。"
+        topic_selection = suggest_topics(workspace, count=3)
+        next_action = (
+            "补足并展示 3 个差异明显的选题方向，分别说明标题、内容角度和核心卖点；"
+            "等待用户选择后再创建项目。"
+        )
         current = None
     return {
         "ready": boot["ready"] and assets["ready"],
@@ -352,7 +356,7 @@ def start(workspace: Path, install: bool = False) -> dict[str, Any]:
         "assets": {key: value for key, value in assets.items() if key != "files"},
         "topic_count": len(pool.get("topics", [])),
         "active_project": current,
-        "suggestion": None if current else suggest_topic(workspace),
+        "topic_selection": topic_selection,
         "next_action": next_action,
     }
 

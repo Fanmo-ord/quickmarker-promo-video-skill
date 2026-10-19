@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from bootstrap import bootstrap
 from common import atomic_write_json, load_json, workspace_layout
+from manage_topic_pool import suggest_topics
 from run_pipeline import advance_project, artifact_errors, new_project, state_path
 
 
@@ -18,6 +19,14 @@ def main() -> int:
         workspace = Path(temp_dir)
 
         bootstrap(workspace, install=False)
+        selection = suggest_topics(workspace, count=3)
+        options = selection.get("suggestions", [])
+        if len(options) != 3 or selection.get("generation_needed") != 0:
+            raise RuntimeError(f"topic selection did not return three options: {selection}")
+        directions = {(item["title"], item["angle"], item["selling_point"]) for item in options}
+        if len(directions) != 3:
+            raise RuntimeError("topic selection returned duplicate directions")
+
         created = new_project(
             workspace,
             "批改后自动生成班级学情",
