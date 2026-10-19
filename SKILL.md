@@ -7,9 +7,9 @@ description: >-
 license: MIT
 metadata:
   author: Fanmo-ord
-  version: 1.2.3
+  version: 1.3.0
   created: 2026-10-16
-  last_reviewed: 2026-10-16
+  last_reviewed: 2026-10-19
   review_interval_days: 90
   dependencies:
     - url: https://github.com/liyupi/ai-promo-video-maker
@@ -27,6 +27,10 @@ metadata:
 本 Skill 是编排层：负责业务规则、阶段顺序、文件管理和审批状态。视觉样帧与主片由 `ai-promo-video-maker` 实际执行；旁白、字幕、混音、封面和草稿由 `jianying-editor-skill` 实际执行。进入对应阶段时，先加载依赖 Skill 的 `SKILL.md` 及其要求的工作规范，并使用其模板、脚本或 API 产出文件。
 
 状态机对这三个制作阶段执行来源校验：视觉样帧、含二维码主片、剪映后期。推进时必须登记匹配的依赖 Skill、实际入口文件和存在的产物；视觉阶段还必须登记 3 个不同样帧。缺少执行证据时不得推进。
+
+日常制片只使用工作区内已入库的版本化素材与知识资料。官网、飞书知识库、隐私、二维码可扫描性和素材授权在素材入库或资料维护时统一复核；只有用户要求更新资料、素材状态缺失或素材发生变化时才进入维护流程。
+
+依赖 Skill 缺失、执行失败或剪映未检测到时暂停并报告具体阻塞。只有两个依赖 Skill 的正式产物可以推进对应制作阶段。
 
 ## 调用示例
 

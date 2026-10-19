@@ -6,13 +6,17 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+import shutil
 from pathlib import Path
 from typing import Any
 
 from bootstrap import bootstrap
 from check_assets import inventory
 from common import atomic_write_json, load_config, load_json, slugify, utc_now, workspace_layout
-from manage_topic_pool import add_topic, initialize as initialize_topic_pool, suggest_topic
+from manage_topic_pool import add_topic, complete_topic, initialize as initialize_topic_pool, suggest_topic
+
+
+TEMPLATE_ROOT = Path(__file__).resolve().parent.parent / "assets" / "templates"
 
 
 STAGES = (
@@ -64,6 +68,89 @@ def latest_project(workspace: Path) -> dict[str, Any] | None:
     return load_json(paths[0]) if paths else None
 
 
+def initialize_project_files(workspace: Path, project_id: str, title: str, platform_name: str) -> dict[str, str]:
+    """Create canonical project paths and seed machine-readable templates."""
+    paths = workspace_layout(workspace)
+    date = project_id[:10]
+    topic = slugify(title)
+    stem = f"{date}_英语批改助手_{{kind}}_{topic}_{platform_name}_9x16_v001"
+    project_dir = paths["promo_projects"] / project_id
+    export_dir = paths["exports"] / project_id
+    sample_dir = paths["generated"] / project_id
+    publish_dir = paths["publish_packages"] / project_id
+    for directory in (project_dir, export_dir, sample_dir, publish_dir, project_dir / "tmp"):
+        directory.mkdir(parents=True, exist_ok=True)
+
+    files = {
+        "script": paths["copywriting"] / f"{stem.format(kind='脚本')}.md",
+        "creative_brief": paths["copywriting"] / f"{stem.format(kind='创意方案')}.md",
+        "storyboard": project_dir / "storyboard.json",
+        "sample_dir": sample_dir,
+        "project_dir": project_dir,
+        "draft_dir": paths["drafts"] / project_id,
+        "export_dir": export_dir,
+        "video": export_dir / f"{stem.format(kind='成片')}.mp4",
+        "cover": export_dir / f"{stem.format(kind='封面')}.png",
+        "delivery_manifest": export_dir / "delivery-manifest.json",
+        "publish_package": publish_dir,
+        "tmp": project_dir / "tmp",
+    }
+
+    shutil.copy2(TEMPLATE_ROOT / "creative-brief.md", files["creative_brief"])
+    storyboard = load_json(TEMPLATE_ROOT / "storyboard.json")
+    storyboard["project_id"] = project_id
+    atomic_write_json(files["storyboard"], storyboard)
+    manifest = load_json(TEMPLATE_ROOT / "delivery-manifest.json")
+    manifest.update(project_id=project_id, platform=platform_name)
+    manifest["video_path"] = str(files["video"])
+    manifest["cover"]["path"] = str(files["cover"])
+    atomic_write_json(files["delivery_manifest"], manifest)
+    return {name: str(path) for name, path in files.items()}
+
+
+def artifact_errors(stage: str, artifact_path: Path | None) -> list[str]:
+    """Validate the artifact contract for stages where a file type matters."""
+    required = {
+        "script": "markdown",
+        "creative_brief": "markdown",
+        "promo_render_with_qr": "video",
+        "jianying_post": "draft",
+        "cover_approval": "image",
+        "export": "video",
+        "delivery_handoff": "manifest",
+    }
+    kind = required.get(stage)
+    if not kind:
+        return []
+    if not artifact_path or not artifact_path.exists():
+        return [f"{stage} 阶段必须提供实际存在的 {kind} 产物"]
+    if kind == "markdown" and (not artifact_path.is_file() or artifact_path.suffix.lower() != ".md"):
+        return [f"{stage} 产物必须是 Markdown 文件"]
+    if kind == "video" and (not artifact_path.is_file() or artifact_path.suffix.lower() != ".mp4"):
+        return [f"{stage} 产物必须是 MP4 文件"]
+    if kind == "image" and (not artifact_path.is_file() or artifact_path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}):
+        return ["封面产物必须是图片文件"]
+    if kind == "draft":
+        has_timeline = artifact_path.is_dir() and (
+            (artifact_path / "draft_info.json").is_file()
+            or any((artifact_path / "Timelines").glob("*/draft_info.json"))
+        )
+        if not has_timeline:
+            return ["jianying_post 产物必须是包含 draft_info.json 的可编辑剪映草稿目录"]
+    if kind == "manifest":
+        try:
+            manifest = load_json(artifact_path)
+        except (OSError, json.JSONDecodeError):
+            return ["delivery-manifest.json 必须是有效 JSON"]
+        required_keys = {"project_id", "draft_path", "video_path", "cover", "qr_outro", "subtitles", "audio", "review", "publish_approved"}
+        missing = sorted(required_keys - set(manifest))
+        if missing:
+            return [f"delivery-manifest.json 缺少字段：{', '.join(missing)}"]
+        if manifest.get("review", {}).get("status") != "pending_manual_review":
+            return ["交付清单必须标记 pending_manual_review，由用户人工验收"]
+    return []
+
+
 def new_project(workspace: Path, title: str, angle: str, selling_point: str, platform_name: str) -> dict[str, Any]:
     """Create versioned project state only after topic deduplication."""
     added = add_topic(workspace, title, angle, selling_point, platform_name)
@@ -78,6 +165,7 @@ def new_project(workspace: Path, title: str, angle: str, selling_point: str, pla
         path = state_path(workspace, project_id)
         version += 1
     config = load_config()
+    files = initialize_project_files(workspace, project_id, title, platform_name)
     project = {
         "project_id": project_id,
         "topic_id": topic["id"],
@@ -91,6 +179,7 @@ def new_project(workspace: Path, title: str, angle: str, selling_point: str, pla
         "updated_at": utc_now(),
         "approvals": {},
         "artifacts": {},
+        "files": files,
         "history": [{"stage": "topic", "at": utc_now(), "note": "选题已通过去重检查"}],
         "contracts": {
             "qr_phase": config["qr_outro"]["phase"],
@@ -122,36 +211,34 @@ def advance_project(
     path = state_path(workspace, project_id)
     project = load_json(path)
     current = project["stage"]
+    artifact_path = Path(artifact).expanduser() if artifact else None
     if current == "complete":
         return {"project": project, "next_action": NEXT_ACTIONS[current]}
     if current in REQUIRED_APPROVALS and not approval_satisfied(project, current):
         missing = [name for name in REQUIRED_APPROVALS[current] if not project.get("approvals", {}).get(name, {}).get("approved")]
         return {"advanced": False, "needs_approval": missing, "project": project, "next_action": NEXT_ACTIONS[current]}
+    errors = artifact_errors(current, artifact_path)
     required_skill = REQUIRED_EXECUTOR_SKILLS.get(current)
     if required_skill:
         entrypoint = Path(skill_entrypoint).expanduser() if skill_entrypoint else None
-        artifact_path = Path(artifact).expanduser() if artifact else None
         sample_paths = [Path(item).expanduser() for item in (samples or [])]
-        errors = []
         if executor_skill != required_skill:
             errors.append(f"executor_skill 必须是 {required_skill}")
         if not entrypoint or entrypoint.name != "SKILL.md" or not entrypoint.is_file():
             errors.append("必须提供实际加载过且存在的依赖 Skill SKILL.md 路径")
-        if not artifact_path or not artifact_path.exists():
-            errors.append("必须提供由依赖 Skill 生成且实际存在的阶段产物")
         if current == "creative_brief":
             if len(sample_paths) != 3 or len({str(path.resolve()) for path in sample_paths}) != 3:
                 errors.append("视觉阶段必须登记 3 个不同样帧")
             elif any(not path.is_file() for path in sample_paths):
                 errors.append("3 个样帧文件必须全部存在")
-        if errors:
-            return {
-                "advanced": False,
-                "error": "；".join(errors),
-                "required_executor_skill": required_skill,
-                "project": project,
-                "next_action": NEXT_ACTIONS[current],
-            }
+    if errors:
+        return {
+            "advanced": False,
+            "error": "；".join(errors),
+            "required_executor_skill": required_skill,
+            "project": project,
+            "next_action": NEXT_ACTIONS[current],
+        }
     if current == "qr_validation" and not project.get("artifacts", {}).get("qr_validation", {}).get("passed"):
         return {
             "advanced": False,
@@ -174,6 +261,9 @@ def advance_project(
     project.setdefault("history", []).append({"stage": current, "at": utc_now(), "note": note or "阶段完成"})
     if next_stage == "complete":
         project["status"] = "complete"
+        video_path = project.get("artifacts", {}).get("export", {}).get("path")
+        if video_path and project.get("topic_id"):
+            complete_topic(workspace, project["topic_id"], video_path)
     atomic_write_json(path, project)
     return {"advanced": True, "project": project, "state_path": str(path), "next_action": NEXT_ACTIONS[next_stage]}
 

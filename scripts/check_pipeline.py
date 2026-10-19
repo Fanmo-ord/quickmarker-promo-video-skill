@@ -93,7 +93,7 @@ def _top_level_imports(file: Path) -> set[str]:
 def third_party_imports(skill_dir: Path, files: list[Path]) -> list[str]:
     """Top-level imported modules that are neither stdlib nor local to the skill."""
     local = _local_module_names(skill_dir, files)
-    stdlib = sys.stdlib_module_names
+    stdlib = getattr(sys, "stdlib_module_names", set(sys.builtin_module_names))
     third: set[str] = set()
     for f in files:
         for mod in _top_level_imports(f):

@@ -53,7 +53,27 @@ def detect_jianying() -> dict[str, Any]:
                 base = Path(value)
                 candidates.extend([base / "JianyingPro", base / "CapCut"])
     found = next((str(path) for path in candidates if path.exists()), None)
-    return {"found": bool(found), "path": found, "checked": [str(path) for path in candidates]}
+    if system == "darwin" and not found and shutil.which("mdfind"):
+        try:
+            proc = subprocess.run(
+                ["mdfind", "kMDItemCFBundleIdentifier == 'com.lemon.lvpro'c"],
+                capture_output=True,
+                text=True,
+                timeout=8,
+                check=False,
+            )
+            found = next(
+                (line for line in proc.stdout.splitlines() if line.endswith(".app") and Path(line).exists()),
+                None,
+            )
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return {
+        "found": bool(found),
+        "path": found,
+        "bundle_id": "com.lemon.lvpro" if found and "VideoFusion" in found else None,
+        "checked": [str(path) for path in candidates],
+    }
 
 
 def inspect_environment() -> dict[str, Any]:

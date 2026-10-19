@@ -74,4 +74,6 @@ python3 scripts/run_pipeline.py --help
 python3 scripts/run_evals.py --validate
 ```
 
+本节用于仓库开发和贡献校验；日常视频制作入口为 `run_pipeline.py`。
+
 完整工作规范见 [SKILL.md](SKILL.md)，素材使用范围见 [asset-license.md](references/asset-license.md)，贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。

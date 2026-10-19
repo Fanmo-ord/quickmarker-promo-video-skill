@@ -6,13 +6,54 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from common import atomic_write_json
-from run_pipeline import advance_project, state_path
+from bootstrap import bootstrap
+from common import atomic_write_json, load_json, workspace_layout
+from run_pipeline import advance_project, new_project, state_path
 
 
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="quickmarker-dependency-gate-") as temp_dir:
         workspace = Path(temp_dir)
+
+        bootstrap(workspace, install=False)
+        created = new_project(
+            workspace,
+            "批改后自动生成班级学情",
+            "从逐份统计到一眼定位共性错题",
+            "批次成绩统计与错题分析",
+            "douyin",
+        )
+        if not created.get("created"):
+            raise RuntimeError(f"new project was not created: {created}")
+        files = created["project"].get("files", {})
+        for key in ("creative_brief", "storyboard", "delivery_manifest"):
+            path = Path(files.get(key, ""))
+            if not path.is_file():
+                raise RuntimeError(f"new project did not seed {key}: {path}")
+
+        created_state_path = Path(created["state_path"])
+        created_state = load_json(created_state_path)
+        export_path = Path(files["video"])
+        export_path.write_bytes(b"mp4")
+        created_state["stage"] = "delivery_handoff"
+        created_state["artifacts"]["export"] = {"path": str(export_path)}
+        atomic_write_json(created_state_path, created_state)
+        completed = advance_project(
+            workspace,
+            created_state["project_id"],
+            files["delivery_manifest"],
+            "delivery handoff ready for manual review",
+        )
+        if completed.get("project", {}).get("status") != "complete":
+            raise RuntimeError(f"delivery handoff did not complete project: {completed}")
+        topic_pool = load_json(workspace_layout(workspace)["state"] / "topic-pool.json")
+        completed_topic = next(
+            (item for item in topic_pool["topics"] if item["id"] == created_state["topic_id"]),
+            None,
+        )
+        if not completed_topic or completed_topic.get("status") != "complete":
+            raise RuntimeError("completed project did not close its topic-pool record")
+
         project_id = "dependency-gate-check"
         project_path = state_path(workspace, project_id)
         project_path.parent.mkdir(parents=True, exist_ok=True)
@@ -54,7 +95,33 @@ def main() -> int:
         if advanced.get("advanced") is not True:
             raise RuntimeError(f"valid dependency evidence was rejected: {advanced}")
 
-    print("dependency execution gate OK")
+        draft_project_id = "jianying-artifact-check"
+        draft_project_path = state_path(workspace, draft_project_id)
+        atomic_write_json(
+            draft_project_path,
+            {
+                "project_id": draft_project_id,
+                "stage": "jianying_post",
+                "status": "active",
+                "approvals": {},
+                "artifacts": {},
+                "history": [],
+            },
+        )
+        fake_video = workspace / "not-a-jianying-draft.mp4"
+        fake_video.write_bytes(b"mp4")
+        rejected = advance_project(
+            workspace,
+            draft_project_id,
+            str(fake_video),
+            "must reject mp4 as a Jianying draft",
+            "jianying-editor-skill",
+            str(entrypoint),
+        )
+        if rejected.get("advanced") is not False:
+            raise RuntimeError("jianying_post accepted an MP4 instead of an editable draft")
+
+        print("dependency execution gate OK")
     return 0
 
 

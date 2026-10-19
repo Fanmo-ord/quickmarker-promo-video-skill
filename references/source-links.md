@@ -15,4 +15,4 @@
 - 主片制作：https://github.com/liyupi/ai-promo-video-maker
 - 剪映后期：https://github.com/luoluoluo22/jianying-editor-skill
 
-在线资料通过用户已有权限访问。项目记录来源 URL、获取日期和适用范围；离线制作使用仓库内的版本化资料。
+在线资料通过用户已有权限访问。官网与知识库同步属于素材维护任务，不在每条视频制作时重复执行；只有用户要求更新、版本状态缺失或本地资料已标记过期时才联网刷新。日常制作使用仓库内的版本化资料。
