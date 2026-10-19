@@ -38,6 +38,12 @@
     "single_layer": true,
     "shrink_main_canvas": false
   },
+  "visual_coverage": {
+    "main_track_scale": 1.0,
+    "minimum_width_ratio": 0.65,
+    "minimum_height_ratio": 0.55,
+    "sample_count": 9
+  },
   "approval_gates": ["visual_sample", "audio_direction", "cover", "publish"]
   ,
   "storage": {

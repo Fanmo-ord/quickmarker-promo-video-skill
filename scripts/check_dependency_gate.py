@@ -55,15 +55,30 @@ def main() -> int:
         with patch("run_pipeline.shutil.which", return_value="/usr/bin/ffprobe"), patch(
             "run_pipeline.subprocess.run",
             return_value=SimpleNamespace(returncode=0, stdout="0\n", stderr=""),
+        ), patch(
+            "run_pipeline.analyze_video",
+            return_value={"passed": True},
         ):
             if not artifact_errors("promo_render_with_qr", fake_main_film):
                 raise RuntimeError("main film with an audio stream passed the silent handoff gate")
         with patch("run_pipeline.shutil.which", return_value="/usr/bin/ffprobe"), patch(
             "run_pipeline.subprocess.run",
             return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+        ), patch(
+            "run_pipeline.analyze_video",
+            return_value={"passed": True},
         ):
             if artifact_errors("promo_render_with_qr", fake_main_film):
                 raise RuntimeError("silent main film was rejected by the handoff gate")
+        with patch("run_pipeline.shutil.which", return_value="/usr/bin/ffprobe"), patch(
+            "run_pipeline.subprocess.run",
+            return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+        ), patch(
+            "run_pipeline.analyze_video",
+            return_value={"passed": False, "median_width_ratio": 0.31, "median_height_ratio": 0.42},
+        ):
+            if not artifact_errors("promo_render_with_qr", fake_main_film):
+                raise RuntimeError("undersized main visual passed the coverage gate")
 
         created_state_path = Path(created["state_path"])
         created_state = load_json(created_state_path)

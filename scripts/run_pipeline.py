@@ -13,6 +13,7 @@ from typing import Any
 
 from bootstrap import bootstrap
 from check_assets import inventory
+from check_visual_coverage import analyze_video
 from common import atomic_write_json, load_config, load_json, slugify, utc_now, workspace_layout
 from manage_topic_pool import add_topic, complete_topic, initialize as initialize_topic_pool, suggest_topics
 
@@ -52,7 +53,7 @@ NEXT_ACTIONS = {
     "creative_approval": "向用户展示 3 套样帧和 BGM 推荐，等待 visual_sample 与 audio_direction 两项确认。",
     "promo_render_with_qr": "继续执行 ai-promo-video-maker，生成无旁白、无音轨的主片，并在主片项目中加入至少 5 秒的二维码片尾。",
     "qr_validation": "截取主片片尾画面，验证二维码完整、无遮挡且可扫描，通过后进入剪映后期。",
-    "jianying_post": "加载并实际执行 jianying-editor-skill，将主片导入剪映并用其 API 加入自然旁白、单层底部字幕、混音和封面。",
+    "jianying_post": "加载并实际执行 jianying-editor-skill，创建 1080×1920 项目，将主片以 100% 比例居中铺满主视频轨，再用独立轨道加入自然旁白、单层底部字幕、BGM 混音和封面。",
     "cover_approval": "展示剪映生成的封面，等待用户确认或给出一次修改意见。",
     "export": "Windows 自动导出并返回文件位置；macOS 打开草稿并请用户手动点击导出。",
     "delivery_handoff": "生成 delivery-manifest.json，标记待人工验收，并进入用户发布确认阶段。",
@@ -158,6 +159,22 @@ def artifact_errors(stage: str, artifact_path: Path | None) -> list[str]:
             return ["主片文件无法通过 ffprobe 校验"]
         if probe.stdout.strip():
             return ["ai-promo-video-maker 主片必须保持无音轨，旁白与混音由剪映阶段完成"]
+        coverage = load_config()["visual_coverage"]
+        try:
+            coverage_result = analyze_video(
+                artifact_path,
+                min_width_ratio=coverage["minimum_width_ratio"],
+                min_height_ratio=coverage["minimum_height_ratio"],
+                sample_count=coverage["sample_count"],
+            )
+        except (OSError, RuntimeError, ValueError, KeyError, json.JSONDecodeError):
+            return ["无法完成主片画面占比校验"]
+        if not coverage_result["passed"]:
+            return [
+                "主片主体画面占比过小："
+                f"宽度中位数 {coverage_result.get('median_width_ratio', 0):.0%}，"
+                f"高度中位数 {coverage_result.get('median_height_ratio', 0):.0%}"
+            ]
     if kind == "image" and (not artifact_path.is_file() or artifact_path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}):
         return ["封面产物必须是图片文件"]
     if kind == "draft":
@@ -219,6 +236,9 @@ def new_project(workspace: Path, title: str, angle: str, selling_point: str, pla
             "qr_minimum_seconds": config["qr_outro"]["minimum_duration_seconds"],
             "subtitle_position": config["subtitles"]["position"],
             "main_canvas_scaled": False,
+            "main_track_scale": config["visual_coverage"]["main_track_scale"],
+            "minimum_visual_width_ratio": config["visual_coverage"]["minimum_width_ratio"],
+            "minimum_visual_height_ratio": config["visual_coverage"]["minimum_height_ratio"],
             "auto_publish": False,
         },
     }
