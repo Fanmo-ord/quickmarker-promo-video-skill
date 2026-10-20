@@ -7,6 +7,7 @@ Use [SKILL.md](SKILL.md) as the workflow entrypoint.
 - Execute the automation directly and present user decisions at the visual, audio, cover, export, and publish gates.
 - Use free/open-source tools and assets with clear commercial-use rights.
 - Build the main film with a scannable QR outro before JianYing post-production.
+- Render 1–3 approved Hyperframes motion clips through `scripts/render_hyperframes_motion.py`, then composite them in the Remotion main film; never mix both runtimes or move audio into Hyperframes.
 - Preserve a full-size 9:16 picture with one synchronized bottom subtitle layer.
 - Apply privacy review to names, grades, schools, phone numbers, handwriting, and student records.
 - Store work according to `references/file-management.md` and keep versioned project outputs.

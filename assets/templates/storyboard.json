@@ -1,6 +1,7 @@
 {
   "project_id": "",
   "canvas": {"width": 1080, "height": 1920, "fps": 30},
+  "motion_plan": "motion-plan.json",
   "scenes": [],
   "qr_outro": {
     "required": true,

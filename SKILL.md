@@ -49,7 +49,7 @@ metadata:
 ## 执行标准
 
 1. 工具和素材采用免费开源、免费可商用或用户已有授权的来源。
-2. `ai-promo-video-maker` 负责画面、节奏、转场和二维码片尾。
+2. `ai-promo-video-maker` 负责画面、节奏、转场和二维码片尾；获批的标志性动效由固定版本 Hyperframes 渲染为无声片段，再交给 Remotion 合成。
 3. `jianying-editor-skill` 负责自然旁白、单层底部字幕、混音、封面和剪映交付。
 4. 主片包含至少 5 秒的完整可扫描二维码和明确 CTA。
 5. 最终画面保持 9:16 原始尺寸；主视频轨按 100% 比例铺满 1080×1920 画布，旁白字幕由 `add_narrated_subtitles` 同步生成并使用独立轨道叠加在底部。
@@ -131,3 +131,4 @@ python3 <SKILL_ROOT>/scripts/run_pipeline.py --workspace "<用户工作区>" sta
 - 来源：`references/source-links.md`
 - 文件管理：`references/file-management.md`
 - 故障处理：`references/troubleshooting.md`
+- Hyperframes 动效：`references/hyperframes-motion.md`

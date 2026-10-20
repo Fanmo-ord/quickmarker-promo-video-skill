@@ -1,0 +1,16 @@
+{
+  "engine": "hyperframes",
+  "version": "0.8.174",
+  "integration_mode": "rendered_clips",
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30
+  },
+  "rules": {
+    "maximum_signature_effects": 3,
+    "audio_mode": "silent",
+    "qr_region_motion": "none"
+  },
+  "clips": []
+}

@@ -12,10 +12,13 @@
   "tools": {
     "promo_repo": "https://github.com/liyupi/ai-promo-video-maker.git",
     "jianying_repo": "https://github.com/luoluoluo22/jianying-editor-skill.git",
+    "hyperframes_package": "hyperframes@0.8.174",
     "paid_services_allowed": false
   },
   "workflow": {
     "main_film_engine": "ai-promo-video-maker",
+    "motion_engine": "hyperframes",
+    "motion_integration_mode": "rendered_clips",
     "main_film_audio_mode": "silent",
     "narration_engine": "jianying-editor-skill",
     "narration_selection": "automatic_recommended",

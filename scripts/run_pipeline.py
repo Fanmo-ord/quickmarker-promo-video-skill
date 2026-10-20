@@ -16,6 +16,7 @@ from check_assets import inventory
 from check_visual_coverage import analyze_video
 from common import atomic_write_json, load_config, load_json, slugify, utc_now, workspace_layout
 from manage_topic_pool import add_topic, complete_topic, initialize as initialize_topic_pool, suggest_topics
+from render_hyperframes_motion import validate_video as validate_motion_video
 
 
 TEMPLATE_ROOT = Path(__file__).resolve().parent.parent / "assets" / "templates"
@@ -49,9 +50,9 @@ REQUIRED_EXECUTOR_SKILLS = {
 NEXT_ACTIONS = {
     "topic": "读取选题池并提出具有明显差异的选题、角度和卖点。",
     "script": "撰写短视频脚本、镜头表、平台标题和发布文案，并把最终口播全文写入 files.narration。",
-    "creative_brief": "加载并实际执行 ai-promo-video-maker，按无旁白模式生成 3 套差异化视觉方向与样帧，并推荐免费可商用 BGM 与画面节奏；跳过 ElevenLabs 和旁白相关询问。",
-    "creative_approval": "向用户展示 3 套样帧和 BGM 推荐，等待 visual_sample 与 audio_direction 两项确认。",
-    "promo_render_with_qr": "继续执行 ai-promo-video-maker，生成无旁白、无音轨的主片，并在主片项目中加入至少 5 秒的二维码片尾。",
+    "creative_brief": "加载并实际执行 ai-promo-video-maker，按无旁白模式生成 3 套差异化视觉方向；在 files.motion_plan 中为每套方向规划最多 3 个 Hyperframes 标志性动效，并各生成 3–5 秒动效预览；推荐免费可商用 BGM 与画面节奏，跳过 ElevenLabs 和旁白相关询问。",
+    "creative_approval": "向用户展示 3 套视觉样帧、对应动效预览和 BGM 推荐，等待 visual_sample 与 audio_direction 两项确认。",
+    "promo_render_with_qr": "继续执行 ai-promo-video-maker；用 scripts/render_hyperframes_motion.py 把已批准的 Hyperframes 动效渲染成 1080×1920、30fps、无音轨 MP4，由 Remotion 按时间轴合成无音轨主片，并加入至少 5 秒静止、可扫描的二维码片尾。",
     "qr_validation": "截取主片片尾画面，验证二维码完整、无遮挡且可扫描，通过后进入剪映后期。",
     "jianying_post": "加载并实际执行 jianying-editor-skill，在 files.jianying_script 创建 1080×1920 项目并铺满主视频轨；从 files.narration 读取全文，调用 add_narrated_subtitles 同步生成旁白与底部字幕，再加入 BGM 和封面。",
     "cover_approval": "展示剪映生成的封面，等待用户确认或给出一次修改意见。",
@@ -88,6 +89,7 @@ def initialize_project_files(workspace: Path, project_id: str, title: str, platf
         "narration": paths["copywriting"] / f"{stem.format(kind='旁白')}.txt",
         "creative_brief": paths["copywriting"] / f"{stem.format(kind='创意方案')}.md",
         "storyboard": project_dir / "storyboard.json",
+        "motion_plan": project_dir / "motion-plan.json",
         "sample_dir": sample_dir,
         "project_dir": project_dir,
         "draft_dir": paths["drafts"] / project_id,
@@ -105,6 +107,9 @@ def initialize_project_files(workspace: Path, project_id: str, title: str, platf
     storyboard = load_json(TEMPLATE_ROOT / "storyboard.json")
     storyboard["project_id"] = project_id
     atomic_write_json(files["storyboard"], storyboard)
+
+    motion_plan = load_json(TEMPLATE_ROOT / "motion-plan.json")
+    atomic_write_json(files["motion_plan"], motion_plan)
     manifest = load_json(TEMPLATE_ROOT / "delivery-manifest.json")
     manifest.update(project_id=project_id, platform=platform_name)
     manifest["video_path"] = str(files["video"])
@@ -206,9 +211,45 @@ def artifact_errors(stage: str, artifact_path: Path | None) -> list[str]:
     return []
 
 
+def motion_plan_errors(path: Path) -> list[str]:
+    """Require validated Hyperframes clips before the Remotion master render."""
+    if not path.is_file():
+        return ["缺少 motion-plan.json"]
+    try:
+        plan = load_json(path)
+    except (OSError, json.JSONDecodeError):
+        return ["motion-plan.json 必须是有效 JSON"]
+    if plan.get("engine") != "hyperframes" or plan.get("integration_mode") != "rendered_clips":
+        return ["动效方案必须使用 Hyperframes rendered_clips 接入模式"]
+    expected_version = load_config()["tools"]["hyperframes_package"].rsplit("@", 1)[-1]
+    if plan.get("version") != expected_version:
+        return [f"Hyperframes 动效版本必须锁定为 {expected_version}"]
+    clips = plan.get("clips")
+    if not isinstance(clips, list) or not 1 <= len(clips) <= 3:
+        return ["动效方案必须包含 1 至 3 个已批准片段"]
+    errors: list[str] = []
+    for index, clip in enumerate(clips, start=1):
+        output_value = clip.get("output") if isinstance(clip, dict) else None
+        output = Path(output_value).expanduser() if output_value else None
+        if output and not output.is_absolute():
+            output = path.parent / output
+        if not output:
+            errors.append(f"第 {index} 个动效片段缺少 output")
+            continue
+        try:
+            validate_motion_video(output, 1080, 1920, 30)
+        except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+            errors.append(f"第 {index} 个动效片段未通过校验：{exc}")
+    return errors
+
+
 def project_contract_errors(stage: str, project: dict[str, Any]) -> list[str]:
     """Validate project-owned files that make cross-stage contracts enforceable."""
     files = project.get("files", {})
+    if stage == "promo_render_with_qr":
+        motion_errors = motion_plan_errors(Path(files.get("motion_plan", "")))
+        if motion_errors:
+            return motion_errors
     if stage in {"script", "jianying_post"}:
         narration_path = Path(files.get("narration", ""))
         if not narration_path.is_file() or not narration_path.read_text(encoding="utf-8").strip():
@@ -258,6 +299,9 @@ def new_project(workspace: Path, title: str, angle: str, selling_point: str, pla
         "history": [{"stage": "topic", "at": utc_now(), "note": "选题已通过去重检查"}],
         "contracts": {
             "main_film_audio_mode": config["workflow"]["main_film_audio_mode"],
+            "motion_engine": config["workflow"]["motion_engine"],
+            "motion_integration_mode": config["workflow"]["motion_integration_mode"],
+            "hyperframes_package": config["tools"]["hyperframes_package"],
             "narration_engine": config["workflow"]["narration_engine"],
             "narration_selection": config["workflow"]["narration_selection"],
             "narration_sync_method": config["workflow"]["narration_sync_method"],

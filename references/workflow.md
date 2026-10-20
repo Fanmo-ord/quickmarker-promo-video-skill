@@ -2,7 +2,7 @@
 
 ## 角色
 
-AI 使用本 Skill 编排环境准备、依赖安装、素材盘点、差异化选题、脚本和交付状态；样帧与主片实际调用 `ai-promo-video-maker`，剪映草稿实际调用 `jianying-editor-skill`。
+AI 使用本 Skill 编排环境准备、依赖安装、素材盘点、差异化选题、脚本和交付状态；样帧与主片实际调用 `ai-promo-video-maker`，获批的标志性动效由 Hyperframes 渲染为无声 MP4 后交给 Remotion 合成，剪映草稿实际调用 `jianying-editor-skill`。
 
 用户确认：
 
@@ -50,7 +50,7 @@ python3 scripts/run_pipeline.py --workspace "<工作区>" advance --project "<ID
 
 ## 制作边界
 
-- 主片负责画面、转场、节奏和二维码片尾。
+- 主片负责画面、转场、节奏和二维码片尾。Hyperframes 仅生成 1 至 3 个无声动效片段，具体契约见 `references/hyperframes-motion.md`。
 - 剪映负责最终旁白、底部字幕、混音和封面。
 - 任一依赖 Skill 不可用时停止流程并报告；对应阶段以依赖 Skill 的正式产物为准。
 - 平台标题、正文和标签分别保存并适配各平台表达。

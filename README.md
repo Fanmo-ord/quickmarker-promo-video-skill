@@ -6,6 +6,7 @@
 
 ```text
 ai-promo-video-maker：无音轨画面、节奏、转场、二维码片尾
+Hyperframes：生成 1–3 个 1080×1920、30fps、无音轨动效片段，由 Remotion 合成
 jianying-editor-skill：剪映智能配音、单层底部字幕、BGM 混音、封面、草稿与导出
 ```
 
@@ -72,6 +73,7 @@ AI 会创建标准工作区并使用仓库预置的官网资料、产品截图�
 ```bash
 python3 scripts/run_pipeline.py --help
 python3 scripts/run_evals.py --validate
+python3 scripts/check_hyperframes_gate.py
 ```
 
 本节用于仓库开发和贡献校验；日常视频制作入口为 `run_pipeline.py`。
