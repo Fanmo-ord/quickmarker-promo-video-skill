@@ -10,6 +10,7 @@
 6. LLM judge: delivery provides the output location and marks the final video for user review.
 7. LLM judge: the workflow acts as an orchestrator, actually executes both dependency Skills, and presents three distinct visual samples before main-film production.
 8. The state machine blocks dependency-owned stages unless the matching Skill entrypoint and generated artifacts are recorded; the visual stage requires three distinct existing samples.
+9. The main film is a silent, text-free visual master; only product UI screenshots and the QR asset may contain source text, while operational copy is owned by JianYing tracks.
 
 ```json
 {

@@ -5,7 +5,25 @@
   "video_path": "",
   "cover": {"path": "", "approved": false},
   "qr_outro": {"included_in_main_film": false, "duration_seconds": 0, "verified_scan": false, "proof_frame": ""},
-  "subtitles": {"position": "bottom", "single_layer": true, "main_canvas_scaled": false, "sync_verified": false},
+  "visual_master": {
+    "mode": "text_free_visual_master",
+    "product_ui_text_allowed": true,
+    "added_copy_layers": false,
+    "verification_passed": false,
+    "proof_frames": []
+  },
+  "subtitles": {
+    "source": "jianying_add_narrated_subtitles",
+    "cues_path": "",
+    "position": "bottom",
+    "bottom_margin_px": 16,
+    "single_layer": true,
+    "one_cue_per_utterance": false,
+    "timing_from_tts_segments": false,
+    "main_canvas_scaled": false,
+    "overlap_check_passed": false,
+    "proof_frames": []
+  },
   "audio": {"narration_present": false, "bgm_present": false, "bgm_ducked": false, "narration_subtitle_sync_method": "", "narration_subtitle_sync_verified": false},
   "privacy_review": {"passed": false, "notes": ""},
   "copyright_review": {"passed": false, "notes": ""},

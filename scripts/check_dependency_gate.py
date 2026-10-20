@@ -11,7 +11,14 @@ from unittest.mock import patch
 from bootstrap import bootstrap
 from common import atomic_write_json, load_json, workspace_layout
 from manage_topic_pool import suggest_topics
-from run_pipeline import advance_project, artifact_errors, new_project, project_contract_errors, state_path
+from run_pipeline import (
+    advance_project,
+    artifact_errors,
+    new_project,
+    project_contract_errors,
+    state_path,
+    visual_master_contract_errors,
+)
 
 
 def main() -> int:
@@ -37,13 +44,66 @@ def main() -> int:
         if not created.get("created"):
             raise RuntimeError(f"new project was not created: {created}")
         files = created["project"].get("files", {})
-        for key in ("creative_brief", "storyboard", "delivery_manifest", "narration"):
+        for key in (
+            "creative_brief",
+            "storyboard",
+            "delivery_manifest",
+            "narration",
+            "narration_cues",
+            "visual_master_contract",
+        ):
             path = Path(files.get(key, ""))
             if not path.is_file():
                 raise RuntimeError(f"new project did not seed {key}: {path}")
 
+        visual_contract_path = Path(files["visual_master_contract"])
+        visual_source = visual_contract_path.parent / "QuickMarker.tsx"
+        visual_source.write_text("export const QuickMarker = () => null;", encoding="utf-8")
+        visual_frames = []
+        for name in ("visual-open.png", "visual-body.png", "visual-qr.png"):
+            frame = visual_contract_path.parent / name
+            frame.write_bytes(b"frame")
+            visual_frames.append(name)
+        visual_contract = load_json(visual_contract_path)
+        visual_contract["source_entrypoints"] = [visual_source.name]
+        visual_contract["verification"] = {
+            "source_review_passed": True,
+            "added_text_detected": False,
+            "sample_frames": visual_frames,
+        }
+        atomic_write_json(visual_contract_path, visual_contract)
+        if visual_master_contract_errors(visual_contract_path):
+            raise RuntimeError("valid text-free visual master contract was rejected")
+        visual_contract["added_copy_layers"] = ["title"]
+        atomic_write_json(visual_contract_path, visual_contract)
+        if not visual_master_contract_errors(visual_contract_path):
+            raise RuntimeError("visual master with added copy passed the contract gate")
+        visual_contract["added_copy_layers"] = []
+        atomic_write_json(visual_contract_path, visual_contract)
+
         narration_path = Path(files["narration"])
-        narration_path.write_text("拍照上传作业，英语批改助手自动完成批改。", encoding="utf-8")
+        narration_path.write_text("拍照上传作业。\n英语批改助手自动完成批改。", encoding="utf-8")
+        narration_cues_path = Path(files["narration_cues"])
+        for artifact_name in ("001.ogg", "002.ogg", "subtitle-proof-001.png", "subtitle-proof-002.png"):
+            (narration_cues_path.parent / artifact_name).write_bytes(b"fixture")
+        narration_cues = load_json(narration_cues_path)
+        narration_cues["segments"] = [
+            {"id": "001", "text": "拍照上传作业。", "tts_asset": "001.ogg", "start_ms": 0, "end_ms": 800},
+            {
+                "id": "002",
+                "text": "英语批改助手自动完成批改。",
+                "tts_asset": "002.ogg",
+                "start_ms": 950,
+                "end_ms": 2200,
+            },
+        ]
+        narration_cues["verification"] = {
+            "text_sequence_matches_narration": True,
+            "timing_from_tts_assets": True,
+            "no_overlap": True,
+            "proof_frames": ["subtitle-proof-001.png", "subtitle-proof-002.png"],
+        }
+        atomic_write_json(narration_cues_path, narration_cues)
         jianying_script = Path(files["jianying_script"])
         jianying_script.write_text(
             "from pathlib import Path\n"
@@ -53,6 +113,20 @@ def main() -> int:
         )
         if project_contract_errors("jianying_post", created["project"]):
             raise RuntimeError("valid narrated-subtitle contract was rejected")
+        narration_path.write_text(
+            "45份英语默写，你要批到几点？一份份对答案、打勾打叉、再登记正确率，一个晚上就过去了。",
+            encoding="utf-8",
+        )
+        if not project_contract_errors("jianying_post", created["project"]):
+            raise RuntimeError("oversized subtitle cue passed the contract gate")
+        narration_path.write_text("拍照上传作业。\n英语批改助手自动完成批改。", encoding="utf-8")
+
+        mismatched_cues = load_json(narration_cues_path)
+        mismatched_cues["segments"][1]["text"] = "另一条字幕。"
+        atomic_write_json(narration_cues_path, mismatched_cues)
+        if not project_contract_errors("jianying_post", created["project"]):
+            raise RuntimeError("subtitle text that differs from narration passed the contract gate")
+        atomic_write_json(narration_cues_path, narration_cues)
         jianying_script.write_text(
             "project.add_tts_intelligent('voice')\nproject.import_srt('subtitle.srt')\n",
             encoding="utf-8",
@@ -69,6 +143,12 @@ def main() -> int:
         contracts = created["project"].get("contracts", {})
         if contracts.get("main_film_audio_mode") != "silent":
             raise RuntimeError("main film must use the silent handoff contract")
+        if contracts.get("main_film_text_mode") != "text_free_visual_master":
+            raise RuntimeError("main film must use the text-free visual contract")
+        if contracts.get("allowed_main_film_text_sources") != ["product_ui_screenshot", "qr_asset"]:
+            raise RuntimeError("main film text-source allowlist is invalid")
+        if contracts.get("added_marketing_copy_allowed") is not False:
+            raise RuntimeError("main film must reject added marketing copy layers")
         if contracts.get("narration_engine") != "jianying-editor-skill":
             raise RuntimeError("narration must be owned by jianying-editor-skill")
         if contracts.get("narration_selection") != "automatic_recommended":
@@ -115,6 +195,17 @@ def main() -> int:
         manifest = load_json(manifest_path)
         manifest["audio"]["narration_subtitle_sync_method"] = "add_narrated_subtitles"
         manifest["audio"]["narration_subtitle_sync_verified"] = True
+        manifest["visual_master"].update(
+            verification_passed=True,
+            proof_frames=["subtitle-proof-001.png", "subtitle-proof-002.png"],
+        )
+        manifest["subtitles"].update(
+            cues_path=str(narration_cues_path),
+            one_cue_per_utterance=True,
+            timing_from_tts_segments=True,
+            overlap_check_passed=True,
+            proof_frames=["subtitle-proof-001.png", "subtitle-proof-002.png"],
+        )
         atomic_write_json(manifest_path, manifest)
         completed = advance_project(
             workspace,

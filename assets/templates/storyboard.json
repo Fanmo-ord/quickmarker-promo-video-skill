@@ -1,7 +1,20 @@
 {
   "project_id": "",
   "canvas": {"width": 1080, "height": 1920, "fps": 30},
+  "subtitle_safe_zone": {
+    "anchor": "bottom",
+    "bottom_margin_px": 16,
+    "height_px": 120,
+    "scene_text_excluded": true,
+    "main_track_scale": 1.0
+  },
   "motion_plan": "motion-plan.json",
+  "visual_text_policy": {
+    "mode": "text_free_visual_master",
+    "allowed_sources": ["product_ui_screenshot", "qr_asset"],
+    "added_copy_layers": false,
+    "jianying_owns_titles_labels_notes_conclusions_and_cta": true
+  },
   "scenes": [],
   "qr_outro": {
     "required": true,

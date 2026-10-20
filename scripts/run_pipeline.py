@@ -8,6 +8,7 @@ import json
 import platform
 import shutil
 import subprocess
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -49,12 +50,12 @@ REQUIRED_EXECUTOR_SKILLS = {
 
 NEXT_ACTIONS = {
     "topic": "读取选题池并提出具有明显差异的选题、角度和卖点。",
-    "script": "撰写短视频脚本、镜头表、平台标题和发布文案，并把最终口播全文写入 files.narration。",
-    "creative_brief": "加载并实际执行 ai-promo-video-maker，按无旁白模式生成 3 套差异化视觉方向；在 files.motion_plan 中为每套方向规划最多 3 个 Hyperframes 标志性动效，并各生成 3–5 秒动效预览；推荐免费可商用 BGM 与画面节奏，跳过 ElevenLabs 和旁白相关询问。",
+    "script": "撰写短视频脚本、镜头表、平台标题和发布文案；把最终口播按自然停顿切成短句，每个非空行一条，写入 files.narration。",
+    "creative_brief": "加载并实际执行 ai-promo-video-maker，按无旁白、无新增运营文字模式生成 3 套差异化视觉方向；画面只组合背景、装饰视觉、真实产品截图和二维码；在 files.motion_plan 中为每套方向规划最多 3 个 Hyperframes 标志性动效，并各生成 3–5 秒动效预览；推荐免费可商用 BGM 与画面节奏，跳过 ElevenLabs 和旁白相关询问。",
     "creative_approval": "向用户展示 3 套视觉样帧、对应动效预览和 BGM 推荐，等待 visual_sample 与 audio_direction 两项确认。",
-    "promo_render_with_qr": "继续执行 ai-promo-video-maker；用 scripts/render_hyperframes_motion.py 把已批准的 Hyperframes 动效渲染成 1080×1920、30fps、无音轨 MP4，由 Remotion 按时间轴合成无音轨主片，并加入至少 5 秒静止、可扫描的二维码片尾。",
+    "promo_render_with_qr": "继续执行 ai-promo-video-maker；用 scripts/render_hyperframes_motion.py 把已批准的 Hyperframes 动效渲染成 1080×1920、30fps、无音轨 MP4，由 Remotion 按时间轴合成无音轨、无新增运营文字的视觉主片，并加入至少 5 秒静止、可扫描的二维码片尾；把源码入口和抽帧证据登记到 files.visual_master_contract。",
     "qr_validation": "截取主片片尾画面，验证二维码完整、无遮挡且可扫描，通过后进入剪映后期。",
-    "jianying_post": "加载并实际执行 jianying-editor-skill，在 files.jianying_script 创建 1080×1920 项目并铺满主视频轨；从 files.narration 读取全文，调用 add_narrated_subtitles 同步生成旁白与底部字幕，再加入 BGM 和封面。",
+    "jianying_post": "加载并实际执行 jianying-editor-skill，在 files.jianying_script 创建 1080×1920 项目并铺满主视频轨；从 files.narration 读取全文，调用 add_narrated_subtitles 同步生成旁白与底部字幕，把实际逐句文本、TTS 素材和起止时间写入 files.narration_cues，再加入 BGM 和封面。",
     "cover_approval": "展示剪映生成的封面，等待用户确认或给出一次修改意见。",
     "export": "Windows 自动导出并返回文件位置；macOS 打开草稿并请用户手动点击导出。",
     "delivery_handoff": "生成 delivery-manifest.json，标记待人工验收，并进入用户发布确认阶段。",
@@ -87,9 +88,11 @@ def initialize_project_files(workspace: Path, project_id: str, title: str, platf
     files = {
         "script": paths["copywriting"] / f"{stem.format(kind='脚本')}.md",
         "narration": paths["copywriting"] / f"{stem.format(kind='旁白')}.txt",
+        "narration_cues": project_dir / "narration-cues.json",
         "creative_brief": paths["copywriting"] / f"{stem.format(kind='创意方案')}.md",
         "storyboard": project_dir / "storyboard.json",
         "motion_plan": project_dir / "motion-plan.json",
+        "visual_master_contract": project_dir / "visual-master-contract.json",
         "sample_dir": sample_dir,
         "project_dir": project_dir,
         "draft_dir": paths["drafts"] / project_id,
@@ -104,12 +107,17 @@ def initialize_project_files(workspace: Path, project_id: str, title: str, platf
 
     shutil.copy2(TEMPLATE_ROOT / "creative-brief.md", files["creative_brief"])
     files["narration"].touch()
+    narration_cues = load_json(TEMPLATE_ROOT / "narration-cues.json")
+    narration_cues["narration_file"] = str(files["narration"])
+    atomic_write_json(files["narration_cues"], narration_cues)
     storyboard = load_json(TEMPLATE_ROOT / "storyboard.json")
     storyboard["project_id"] = project_id
     atomic_write_json(files["storyboard"], storyboard)
 
     motion_plan = load_json(TEMPLATE_ROOT / "motion-plan.json")
     atomic_write_json(files["motion_plan"], motion_plan)
+    visual_master_contract = load_json(TEMPLATE_ROOT / "visual-master-contract.json")
+    atomic_write_json(files["visual_master_contract"], visual_master_contract)
     manifest = load_json(TEMPLATE_ROOT / "delivery-manifest.json")
     manifest.update(project_id=project_id, platform=platform_name)
     manifest["video_path"] = str(files["video"])
@@ -197,17 +205,40 @@ def artifact_errors(stage: str, artifact_path: Path | None) -> list[str]:
             manifest = load_json(artifact_path)
         except (OSError, json.JSONDecodeError):
             return ["delivery-manifest.json 必须是有效 JSON"]
-        required_keys = {"project_id", "draft_path", "video_path", "cover", "qr_outro", "subtitles", "audio", "review", "publish_approved"}
+        required_keys = {"project_id", "draft_path", "video_path", "cover", "qr_outro", "visual_master", "subtitles", "audio", "review", "publish_approved"}
         missing = sorted(required_keys - set(manifest))
         if missing:
             return [f"delivery-manifest.json 缺少字段：{', '.join(missing)}"]
         if manifest.get("review", {}).get("status") != "pending_manual_review":
             return ["交付清单必须标记 pending_manual_review，由用户人工验收"]
+        visual_master = manifest.get("visual_master", {})
+        if (
+            visual_master.get("mode") != "text_free_visual_master"
+            or visual_master.get("product_ui_text_allowed") is not True
+            or visual_master.get("added_copy_layers") is not False
+            or visual_master.get("verification_passed") is not True
+            or not visual_master.get("proof_frames")
+        ):
+            return ["交付清单必须记录无新增运营文字视觉主片及其验证帧"]
         audio = manifest.get("audio", {})
         if audio.get("narration_subtitle_sync_method") != "add_narrated_subtitles":
             return ["交付清单必须记录剪映旁白字幕同步方法 add_narrated_subtitles"]
         if audio.get("narration_subtitle_sync_verified") is not True:
             return ["交付清单必须记录旁白字幕同步校验已通过"]
+        subtitles = manifest.get("subtitles", {})
+        subtitle_checks = {
+            "source": "jianying_add_narrated_subtitles",
+            "position": "bottom",
+            "single_layer": True,
+            "one_cue_per_utterance": True,
+            "timing_from_tts_segments": True,
+            "main_canvas_scaled": False,
+            "overlap_check_passed": True,
+        }
+        if any(subtitles.get(key) != value for key, value in subtitle_checks.items()):
+            return ["交付清单必须记录逐句字幕、真实 TTS 时间轴、底部安全区和重叠校验已通过"]
+        if not subtitles.get("cues_path") or not subtitles.get("proof_frames"):
+            return ["交付清单必须登记逐句时间轴文件和字幕验证帧"]
     return []
 
 
@@ -243,6 +274,132 @@ def motion_plan_errors(path: Path) -> list[str]:
     return errors
 
 
+def contract_evidence_path(contract_path: Path, value: str) -> Path:
+    evidence_path = Path(value)
+    return evidence_path if evidence_path.is_absolute() else contract_path.parent / evidence_path
+
+
+def visual_master_contract_errors(path: Path) -> list[str]:
+    try:
+        contract = load_json(path)
+    except (OSError, json.JSONDecodeError):
+        return ["visual-master-contract.json 必须是有效 JSON"]
+    if contract.get("mode") != "text_free_visual_master":
+        return ["视觉主片必须使用 text_free_visual_master 模式"]
+    allowed_layers = {"background", "decorative_visual", "product_ui_screenshot", "qr_asset"}
+    declared_layers = contract.get("allowed_visual_layers")
+    if not isinstance(declared_layers, list) or set(declared_layers) != allowed_layers:
+        return ["视觉主片只能使用背景、装饰视觉、产品界面截图和二维码图层"]
+    if contract.get("product_ui_text_allowed") is not True or contract.get("added_copy_layers") != []:
+        return ["产品截图自身 UI 文字可以保留，视觉主片不得新增运营文字图层"]
+
+    source_entrypoints = contract.get("source_entrypoints")
+    if not isinstance(source_entrypoints, list) or not source_entrypoints:
+        return ["必须登记视觉主片的实际源码入口"]
+    for source in source_entrypoints:
+        source_path = contract_evidence_path(path, str(source))
+        if not source_path.is_file():
+            return [f"视觉主片源码入口不存在：{source_path}"]
+
+    verification = contract.get("verification", {})
+    if verification.get("source_review_passed") is not True or verification.get("added_text_detected") is not False:
+        return ["必须确认视觉主片源码和抽帧中没有新增运营文字"]
+    sample_frames = verification.get("sample_frames")
+    if not isinstance(sample_frames, list) or len(sample_frames) < 3:
+        return ["必须保存开场、主体和二维码片尾的视觉主片验证帧"]
+    for sample_frame in sample_frames:
+        sample_path = contract_evidence_path(path, str(sample_frame))
+        if not sample_path.is_file():
+            return [f"视觉主片验证帧不存在：{sample_path}"]
+    return []
+
+
+def subtitle_display_width(text: str) -> int:
+    return sum(2 if unicodedata.east_asian_width(char) in {"W", "F", "A"} else 1 for char in text)
+
+
+def narration_contract_errors(path: Path) -> list[str]:
+    if not path.is_file():
+        return ["缺少规范旁白文本文件"]
+    lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if not lines:
+        return ["必须在规范旁白文本文件中保存最终口播内容"]
+    oversized = [str(index) for index, line in enumerate(lines, start=1) if subtitle_display_width(line) > 44]
+    if oversized:
+        return [f"旁白第 {', '.join(oversized)} 行超过单行字幕可读宽度，请按自然停顿拆分"]
+    return []
+
+
+def normalize_caption_text(text: str) -> str:
+    return "".join(text.split())
+
+
+def narration_cues_errors(path: Path, narration_path: Path) -> list[str]:
+    try:
+        cues = load_json(path)
+    except (OSError, json.JSONDecodeError):
+        return ["narration-cues.json 必须是有效 JSON"]
+    if cues.get("source") != "jianying_add_narrated_subtitles":
+        return ["逐句时间轴必须来自剪映 add_narrated_subtitles"]
+
+    narration_lines = [
+        normalize_caption_text(line)
+        for line in narration_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    segments = cues.get("segments")
+    if not isinstance(segments, list) or not segments:
+        return ["必须登记剪映实际生成的逐句字幕与 TTS 时间段"]
+
+    segment_texts: list[str] = []
+    previous_end = -1.0
+    for index, segment in enumerate(segments, start=1):
+        if not isinstance(segment, dict):
+            return [f"第 {index} 条字幕时间段格式无效"]
+        text = normalize_caption_text(str(segment.get("text", "")))
+        tts_asset = str(segment.get("tts_asset", "")).strip()
+        start_ms = segment.get("start_ms")
+        end_ms = segment.get("end_ms")
+        if not text or not tts_asset or not isinstance(start_ms, (int, float)) or not isinstance(end_ms, (int, float)):
+            return [f"第 {index} 条字幕必须包含 text、tts_asset、start_ms 和 end_ms"]
+        tts_path = Path(tts_asset)
+        if not tts_path.is_absolute():
+            tts_path = path.parent / tts_path
+        if not tts_path.is_file():
+            return [f"第 {index} 条字幕登记的 TTS 素材不存在：{tts_path}"]
+        if start_ms < previous_end or end_ms <= start_ms:
+            return [f"第 {index} 条字幕时间段必须按真实音频顺序连续递增"]
+        previous_end = float(end_ms)
+        segment_texts.append(text)
+    if segment_texts != narration_lines:
+        return ["逐句字幕文本顺序必须与旁白文件的非空行完全一致"]
+
+    layout = cues.get("layout", {})
+    if (
+        layout.get("canvas_width") != 1080
+        or layout.get("canvas_height") != 1920
+        or layout.get("anchor") != "bottom"
+        or layout.get("main_track_scale") != 1.0
+        or layout.get("numeric_y_position") is not True
+    ):
+        return ["字幕必须使用 1080×1920 底部数值坐标，主视频轨保持 100% 比例"]
+
+    verification = cues.get("verification", {})
+    required_checks = ("text_sequence_matches_narration", "timing_from_tts_assets", "no_overlap")
+    if any(verification.get(check) is not True for check in required_checks):
+        return ["必须完成字幕文本、真实 TTS 时间段和画面重叠技术校验"]
+    proof_frames = verification.get("proof_frames")
+    if not isinstance(proof_frames, list) or not proof_frames:
+        return ["必须保存逐句时间中点的字幕验证帧"]
+    for proof_frame in proof_frames:
+        proof_path = Path(str(proof_frame))
+        if not proof_path.is_absolute():
+            proof_path = path.parent / proof_path
+        if not proof_path.is_file():
+            return [f"字幕验证帧不存在：{proof_path}"]
+    return []
+
+
 def project_contract_errors(stage: str, project: dict[str, Any]) -> list[str]:
     """Validate project-owned files that make cross-stage contracts enforceable."""
     files = project.get("files", {})
@@ -250,10 +407,14 @@ def project_contract_errors(stage: str, project: dict[str, Any]) -> list[str]:
         motion_errors = motion_plan_errors(Path(files.get("motion_plan", "")))
         if motion_errors:
             return motion_errors
+        visual_errors = visual_master_contract_errors(Path(files.get("visual_master_contract", "")))
+        if visual_errors:
+            return visual_errors
     if stage in {"script", "jianying_post"}:
         narration_path = Path(files.get("narration", ""))
-        if not narration_path.is_file() or not narration_path.read_text(encoding="utf-8").strip():
-            return ["必须在规范旁白文本文件中保存最终口播内容"]
+        narration_errors = narration_contract_errors(narration_path)
+        if narration_errors:
+            return narration_errors
     if stage == "jianying_post":
         script_path = Path(files.get("jianying_script", ""))
         if not script_path.is_file() or script_path.suffix.lower() != ".py":
@@ -264,6 +425,9 @@ def project_contract_errors(stage: str, project: dict[str, Any]) -> list[str]:
             return ["剪映脚本必须读取规范旁白文本并调用 add_narrated_subtitles 同步生成声音和字幕"]
         if "add_tts_intelligent(" in source or "import_srt(" in source:
             return ["剪映旁白与字幕必须统一通过 add_narrated_subtitles 生成"]
+        cues_errors = narration_cues_errors(Path(files.get("narration_cues", "")), narration_path)
+        if cues_errors:
+            return cues_errors
     return []
 
 
@@ -299,6 +463,9 @@ def new_project(workspace: Path, title: str, angle: str, selling_point: str, pla
         "history": [{"stage": "topic", "at": utc_now(), "note": "选题已通过去重检查"}],
         "contracts": {
             "main_film_audio_mode": config["workflow"]["main_film_audio_mode"],
+            "main_film_text_mode": config["workflow"]["main_film_text_mode"],
+            "allowed_main_film_text_sources": config["workflow"]["allowed_main_film_text_sources"],
+            "added_marketing_copy_allowed": config["workflow"]["added_marketing_copy_allowed"],
             "motion_engine": config["workflow"]["motion_engine"],
             "motion_integration_mode": config["workflow"]["motion_integration_mode"],
             "hyperframes_package": config["tools"]["hyperframes_package"],

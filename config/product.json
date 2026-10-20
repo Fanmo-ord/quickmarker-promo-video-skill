@@ -20,6 +20,9 @@
     "motion_engine": "hyperframes",
     "motion_integration_mode": "rendered_clips",
     "main_film_audio_mode": "silent",
+    "main_film_text_mode": "text_free_visual_master",
+    "allowed_main_film_text_sources": ["product_ui_screenshot", "qr_asset"],
+    "added_marketing_copy_allowed": false,
     "narration_engine": "jianying-editor-skill",
     "narration_selection": "automatic_recommended",
     "narration_sync_method": "add_narrated_subtitles",
@@ -34,6 +37,7 @@
     "minimum_duration_seconds": 5,
     "asset": "assets/brand/小程序二维码.png",
     "cta": "微信扫码，即刻体验英语批改助手",
+    "cta_rendering": "jianying_caption_track",
     "must_be_scannable": true,
     "must_not_be_covered_by_subtitles": true
   },

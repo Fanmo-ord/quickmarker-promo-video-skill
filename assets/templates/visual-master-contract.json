@@ -1,0 +1,12 @@
+{
+  "mode": "text_free_visual_master",
+  "allowed_visual_layers": ["background", "decorative_visual", "product_ui_screenshot", "qr_asset"],
+  "product_ui_text_allowed": true,
+  "added_copy_layers": [],
+  "source_entrypoints": [],
+  "verification": {
+    "source_review_passed": false,
+    "added_text_detected": null,
+    "sample_frames": []
+  }
+}

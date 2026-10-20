@@ -55,3 +55,22 @@ python3 scripts/run_pipeline.py --workspace "<工作区>" advance --project "<ID
 - 任一依赖 Skill 不可用时停止流程并报告；对应阶段以依赖 Skill 的正式产物为准。
 - 平台标题、正文和标签分别保存并适配各平台表达。
 - 导出后的成片由用户人工验收，发布包经用户确认后进入发布环节。
+
+## 视觉主片合同
+
+1. `ai-promo-video-maker` 输出 `text_free_visual_master`：视觉层只包含背景、装饰视觉、真实产品界面截图和二维码资产。
+2. 产品截图内部原有的 UI 文字属于产品素材，可以保留；标题、标签、说明、结语和 CTA 等运营文案由剪映文字轨道承载。
+3. Hyperframes 只生成无声视觉动效片段，Remotion 只负责时间轴和视觉合成，两者均不新增运营文字或声音。
+4. 二维码在视觉主片中保持静止、完整、可扫描；CTA 作为剪映字幕轨道中的独立口播短句出现。
+5. 主片生成后，在 `files.visual_master_contract` 登记实际源码入口，以及开场、主体和二维码片尾至少 3 张验证帧。状态机检查证据文件存在后才允许进入剪映阶段。
+6. 产品截图按 100% 主轨画布进行构图，重要 UI 区域避开 `storyboard.subtitle_safe_zone`。
+
+## 旁白字幕合同
+
+1. `files.narration` 是旁白与字幕的唯一文字源，每个非空行对应一个自然停顿短句；单句默认不超过一行字幕的可读宽度。
+2. 剪映脚本只调用一次 `add_narrated_subtitles` 生成声音与字幕，不另建独立 TTS 或 SRT 时间轴。
+3. 生成后将每段 `text`、实际 `tts_asset` 路径、`start_ms`、`end_ms` 按剪映/TTS 顺序写入 `files.narration_cues`。时间段连续递增，字幕文本顺序与旁白文件逐行一致；状态机同时检查所登记的音频文件确实存在。
+4. 字幕锚定画面底部。渲染 PNG 或预览时，先按实际画布计算数值坐标 `canvas_height - subtitle_height - bottom_margin_px`，不把坐标表达式交给滤镜解释。
+5. 上游视觉主片不新增运营文字，产品截图的重要 UI 区域避开 `storyboard.subtitle_safe_zone`；主视频轨保持 100% 比例，不为字幕缩放画面。
+6. 在每条字幕的时间中点生成验证帧，确认当前只显示该句且不与场景文字重叠；验证结果和证明帧写入 `files.narration_cues` 与交付清单。
+7. 以上属于导出前的轨道与布局技术校验；导出后的成片仍由用户人工验收。

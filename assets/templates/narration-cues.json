@@ -1,0 +1,20 @@
+{
+  "source": "jianying_add_narrated_subtitles",
+  "narration_file": "",
+  "segments": [],
+  "layout": {
+    "canvas_width": 1080,
+    "canvas_height": 1920,
+    "anchor": "bottom",
+    "bottom_margin_px": 16,
+    "max_lines": 1,
+    "main_track_scale": 1.0,
+    "numeric_y_position": true
+  },
+  "verification": {
+    "text_sequence_matches_narration": false,
+    "timing_from_tts_assets": false,
+    "no_overlap": false,
+    "proof_frames": []
+  }
+}
